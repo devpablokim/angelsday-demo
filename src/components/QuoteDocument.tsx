@@ -12,7 +12,7 @@ export const QuoteDocument = forwardRef<HTMLDivElement, { booking: Booking; quot
   const cfg = eventConfig(b.eventType);
   return (
     <div ref={ref} className={`quote-doc ${forPdf ? 'quote-doc--pdf' : ''}`}>
-      <div className="quote-doc__head">
+      <div className="quote-doc__head" data-pdf-keep>
         <div>
           <div className="overline">ESTIMATE · v{q.version}</div>
           <h2 className="quote-doc__title">견적서</h2>
@@ -23,7 +23,7 @@ export const QuoteDocument = forwardRef<HTMLDivElement, { booking: Booking; quot
         <Logo layout="horizontal" variant="ink" height={34} showTagline={false} />
       </div>
 
-      <dl className="quote-doc__info">
+      <dl className="quote-doc__info" data-pdf-keep>
         <div>
           <dt>행사</dt>
           <dd>
@@ -59,7 +59,7 @@ export const QuoteDocument = forwardRef<HTMLDivElement, { booking: Booking; quot
         </thead>
         {groupLines(q.lines).map((g) => (
           <tbody key={g.category}>
-            <tr className="quote-doc__cat">
+            <tr className="quote-doc__cat" data-pdf-keep-next>
               <td colSpan={4}>{g.category}</td>
             </tr>
             {g.lines.map((l) => (
@@ -80,7 +80,7 @@ export const QuoteDocument = forwardRef<HTMLDivElement, { booking: Booking; quot
         ))}
       </table>
 
-      <div className="quote-doc__totals">
+      <div className="quote-doc__totals" data-pdf-keep>
         <div className="quote-doc__row">
           <span>소계</span>
           <span className="price">{won(t.subtotal)}</span>
@@ -111,12 +111,12 @@ export const QuoteDocument = forwardRef<HTMLDivElement, { booking: Booking; quot
       </div>
 
       {q.memo && (
-        <div className="quote-doc__memo">
+        <div className="quote-doc__memo" data-pdf-keep>
           <span className="label">플래너 메모</span>
           <p>{q.memo}</p>
         </div>
       )}
-      <p className="quote-doc__foot">
+      <p className="quote-doc__foot" data-pdf-keep>
         VAT 포함 금액입니다. 최종 인원은 행사 7일 전까지 확정해 주세요. · {VENUE.name} · {VENUE.address} · {VENUE.phone} · 사업자등록번호 {VENUE.bizNo}
       </p>
     </div>

@@ -216,14 +216,22 @@ npm run admin:set -- owner@angelsday.kr   # 6-1 에서 만든 관리자 이메�
 npm run seed                              # settings/catalog · settings/emailRules 초기 문서 저장
 ```
 
-### 6-6. 메일 발송 설정 (Trigger Email 확장 프로그램)
+### 6-6. 메일 발송 설정 (지메일)
 
-Functions 는 `mail` 컬렉션에 메일 문서를 쓰고, Firebase 공식 확장 프로그램이 SMTP 로 실제 발송합니다.
+Functions 는 `mail` 컬렉션에 메일 문서를 쓰고, `deliverMail` 함수가 지메일 SMTP 로 실제 발송합니다.
+발송 결과는 각 문서의 `delivery.state` (`SUCCESS` · `ERROR` · `SKIPPED`) 에 남습니다.
 
-1. Firebase 콘솔 → **Extensions** → **Trigger Email from Firestore** 설치
-2. 설정: *Email documents collection* = `mail`, *SMTP connection URI* = 사용하는 메일 서비스의 SMTP 주소
-   (예: 네이버 웍스 · Gmail(앱 비밀번호) · SendGrid 등), *Default FROM* = `엔젤스데이 <noreply@도메인>`
-3. 테스트: 데모 고객으로 문의를 남기면 `mail` 문서가 생기고 `delivery.state` 가 `SUCCESS` 가 됩니다.
+1. 보낼 지메일 계정에서 2단계 인증을 켜고 [앱 비밀번호](https://myaccount.google.com/apppasswords)를 만듭니다.
+2. Cloud Shell 에서 Secret Manager 에 등록합니다. (비밀번호는 코드나 저장소에 넣지 않습니다)
+   ```bash
+   printf '%s' '{"user":"보내는주소@gmail.com","pass":"앱비밀번호16자리"}' | gcloud secrets create GMAIL_SMTP --project=angelsday-9ff6f --data-file=-
+   gcloud secrets add-iam-policy-binding GMAIL_SMTP --project=angelsday-9ff6f --member=serviceAccount:298996740273-compute@developer.gserviceaccount.com --role=roles/secretmanager.secretAccessor
+   ```
+   비밀번호를 바꿀 때는 같은 형식으로 `gcloud secrets versions add GMAIL_SMTP --data-file=-` 를 실행합니다.
+3. `firebase deploy --only functions:deliverMail`
+
+- `example.com` 같은 예시 도메인 주소로는 보내지 않습니다. (데모 데이터 보호)
+- 개인 지메일은 하루 약 500통까지 보낼 수 있습니다.
 
 ### 6-7. GitHub Actions 로 배포 (선택)
 

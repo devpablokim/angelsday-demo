@@ -5,9 +5,11 @@
 //  - sendEmailNow      : 관리자 메일 수동 발송 (callable)
 //  - payDeposit        : 예약금 결제 승인 (callable, 기본 MOCK)
 //  - chat              : 상담 챗봇 (callable, Claude API)
+//  - deliverMail       : mail 컬렉션 → 지메일 SMTP 실제 발송
 import './app';
 
 export { onBookingWritten } from './bookings';
 export { scheduledEmails, runEmailScheduler, sendEmailNow } from './scheduler';
 export { payDeposit } from './payments';
 export { chat } from './chat';
+export { deliverMail } from './delivery';

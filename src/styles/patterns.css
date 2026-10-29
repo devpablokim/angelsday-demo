@@ -130,3 +130,6 @@
 }
 /* html2canvas 는 OpenType 기능(lnum)을 그리지 못하므로 PDF 총액은 산세리프로 */
 .quote-doc--pdf .quote-doc__row--total .price { font-family: var(--font-sans); font-size: 24px; font-weight: 700; letter-spacing: -0.02em; }
+/* PDF 는 A4 한 장에 최대한 담기도록 표 간격을 줄입니다 */
+.quote-doc--pdf .quote-doc__table td { padding: 6px 0; line-height: 1.45; }
+.quote-doc--pdf .quote-doc__cat td { padding: 10px 0 0; }

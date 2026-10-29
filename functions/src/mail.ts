@@ -1,5 +1,5 @@
 // 메일 발송 — "Trigger Email from Firestore" 확장 프로그램 형식으로 `mail` 컬렉션에 문서를 씁니다.
-// 확장 프로그램이 SMTP 로 실제 발송합니다. (README > 메일 발송 설정)
+// delivery.ts 의 deliverMail 이 지메일 SMTP 로 실제 발송합니다. (README > 메일 발송 설정)
 import { dueEmails, EMAIL_RULES, emailHtml, enabledMap, renderEmail, withEmailLog, type EmailContent, type PlannedEmail } from '../../shared/emailRules';
 import { log } from '../../shared/ops';
 import type { Booking, EmailLog } from '../../shared/types';
