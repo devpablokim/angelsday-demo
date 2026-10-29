@@ -1,6 +1,6 @@
 {
   "hosting": {
-    "site": "angels-day",
+    "site": "angelsday",
     "public": "dist",
     "ignore": [
       "firebase.json",
