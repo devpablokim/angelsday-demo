@@ -34,9 +34,10 @@ function walk(d) {
 /** firebase.json 의 hosting 설정 → Hosting REST API ServingConfig */
 function servingConfig(h) {
   const cfg = {};
-  if (h.headers) cfg.headers = h.headers.map((x) => ({ glob: x.source, headers: Object.fromEntries(x.headers.map((y) => [y.key, y.value])) }));
-  if (h.redirects) cfg.redirects = h.redirects.map((x) => ({ glob: x.source, location: x.destination, statusCode: x.type ?? 301 }));
-  if (h.rewrites) cfg.rewrites = h.rewrites.map((x) => ({ glob: x.source, path: x.destination }));
+  const match = (x) => (x.regex ? { regex: x.regex } : { glob: x.source });
+  if (h.headers) cfg.headers = h.headers.map((x) => ({ ...match(x), headers: Object.fromEntries(x.headers.map((y) => [y.key, y.value])) }));
+  if (h.redirects) cfg.redirects = h.redirects.map((x) => ({ ...match(x), location: x.destination, statusCode: x.type ?? 301 }));
+  if (h.rewrites) cfg.rewrites = h.rewrites.map((x) => ({ ...match(x), path: x.destination }));
   if (h.cleanUrls !== undefined) cfg.cleanUrls = h.cleanUrls;
   if (h.trailingSlash !== undefined) cfg.trailingSlashBehavior = h.trailingSlash ? 'ADD' : 'REMOVE';
   return cfg;

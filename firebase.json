@@ -51,7 +51,7 @@
     ],
     "redirects": [
       {
-        "source": "/design-system",
+        "regex": "^/design-system$",
         "destination": "/design-system/",
         "type": 301
       }
