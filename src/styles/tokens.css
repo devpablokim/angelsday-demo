@@ -1,0 +1,109 @@
+/*
+ * ANGELSDAY Design Tokens — 화이트 캔버스 위에 골드와 블랙으로 품격을 더하는 디자인 시스템.
+ * 이 파일이 토큰의 단일 원천(source of truth)이며 DESIGN.md 의 YAML 과 1:1로 대응합니다.
+ */
+:root {
+  /* ── Brand ─────────────────────────────── */
+  --color-gold: #b8924a;            /* Angels Gold — 브랜드 시그니처. 큰 글자·장식·포커스 */
+  --color-gold-deep: #8c6b2e;       /* 본문 크기 골드 텍스트 (AA 4.9:1) */
+  --color-gold-light: #d9bf85;      /* 다크 배경 위 골드, 하이라이트 */
+  --color-gold-pale: #f7f1e3;       /* 골드 틴트 서피스 (선택 상태, 공지) */
+  --color-gold-active: #9c7a38;     /* 골드 버튼 press */
+  --gradient-gold: linear-gradient(135deg, #8c6b2e 0%, #e2c985 48%, #a8823c 100%);
+
+  --color-ink: #141210;             /* 웜 블랙 — 주요 CTA, 헤드라인 */
+  --color-ink-soft: #2b2723;        /* ink press / 다크 카드 내부 */
+  --color-ink-active: #000000;
+
+  /* ── Text ──────────────────────────────── */
+  --color-body: #4a453e;
+  --color-body-strong: #141210;
+  --color-muted: #7d766b;
+  --color-muted-soft: #a9a297;
+  --color-on-ink: #ffffff;
+  --color-on-ink-muted: #bdb5a6;
+  --color-on-gold: #141210;
+
+  /* ── Surface ───────────────────────────── */
+  --color-canvas: #ffffff;          /* 페이지 바닥은 순백 */
+  --color-canvas-soft: #faf8f3;     /* 아이보리 밴드 (섹션 구분) */
+  --color-surface-card: #ffffff;
+  --color-surface-strong: #f2ede3;  /* 배지, 비활성 칩 */
+  --color-surface-ink: #141210;     /* 피처드 카드, 관리자 사이드바 */
+
+  /* ── Hairlines ─────────────────────────── */
+  --color-hairline: #ece6da;
+  --color-hairline-soft: #f4f0e8;
+  --color-hairline-strong: #d9d0bf;
+  --color-hairline-gold: #e3d3ad;
+
+  /* ── Calendar status ───────────────────── */
+  --color-status-confirmed: #141210;
+  --color-status-pending: #b8924a;
+  --color-status-promo: #8e3b46;
+  --color-status-blocked: #a9a297;
+
+  /* ── Event pastels (행사 종류 태그 전용) ── */
+  --color-event-wedding: #f3ead3;   --color-event-wedding-ink: #6e5321;
+  --color-event-dol: #f6e3de;       --color-event-dol-ink: #8a4b3e;
+  --color-event-birthday: #e6ecdd;  --color-event-birthday-ink: #4f6340;
+  --color-event-corporate: #e1e6ec; --color-event-corporate-ink: #3f5166;
+  --color-event-catering: #efe6da;  --color-event-catering-ink: #6b5640;
+
+  /* ── Semantic ──────────────────────────── */
+  --color-success: #2f7a55;
+  --color-success-pale: #e7f2ec;
+  --color-error: #b3261e;
+  --color-error-pale: #fbeae8;
+  --color-warning: #a86a12;
+  --color-warning-pale: #fbf1df;
+  --color-holiday: #b3261e;
+  --color-saturday: #3f5a7a;
+
+  /* ── Typography ────────────────────────── */
+  --font-sans: 'Pretendard Variable', Pretendard, -apple-system, BlinkMacSystemFont, 'Apple SD Gothic Neo', 'Noto Sans KR', system-ui, sans-serif;
+  --font-serif-ko: 'Noto Serif KR', 'Nanum Myeongjo', 'AppleMyungjo', serif;
+  --font-serif-latin: 'Cormorant Garamond', 'Noto Serif KR', Georgia, serif;
+  --font-caps: 'Cinzel', 'Cormorant Garamond', Georgia, serif;
+
+  /* ── Radius ────────────────────────────── */
+  --radius-xs: 4px;
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 24px;
+  --radius-pill: 9999px;
+
+  /* ── Spacing (4px base) ────────────────── */
+  --space-xxs: 4px;
+  --space-xs: 8px;
+  --space-sm: 12px;
+  --space-base: 16px;
+  --space-md: 20px;
+  --space-lg: 24px;
+  --space-xl: 32px;
+  --space-xxl: 48px;
+  --space-section: 80px;
+
+  /* ── Elevation: 헤어라인이 기본, 그림자는 떠 있는 오버레이에만 ── */
+  --shadow-overlay: 0 16px 40px rgba(20, 18, 16, 0.14), 0 2px 8px rgba(20, 18, 16, 0.06);
+  --shadow-fab: 0 10px 24px rgba(20, 18, 16, 0.22);
+
+  /* ── Layout ────────────────────────────── */
+  --container: 1200px;
+  --gutter: 16px;
+  --nav-height: 56px;
+
+  /* ── Motion ────────────────────────────── */
+  --ease-out: cubic-bezier(0.22, 1, 0.36, 1);
+  --duration-fast: 140ms;
+  --duration-base: 220ms;
+}
+
+@media (min-width: 640px) {
+  :root { --gutter: 24px; }
+}
+@media (min-width: 1024px) {
+  :root { --gutter: 32px; --nav-height: 68px; }
+}

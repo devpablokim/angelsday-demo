@@ -1,0 +1,75 @@
+# Firebase 배포 (수동 실행) — GitHub > Actions > "Deploy to Firebase" > Run workflow
+#
+# 필요한 설정 (GitHub 저장소 > Settings > Secrets and variables > Actions)
+#   Secrets  : FIREBASE_SERVICE_ACCOUNT  — 서비스 계정 비공개 키 JSON 내용 전체 (.secrets/README.md 참고)
+#   Variables: FIREBASE_PROJECT_ID, VITE_FIREBASE_API_KEY, VITE_FIREBASE_AUTH_DOMAIN,
+#              VITE_FIREBASE_STORAGE_BUCKET, VITE_FIREBASE_MESSAGING_SENDER_ID, VITE_FIREBASE_APP_ID,
+#              VITE_PUBLIC_BASE_URL, VITE_KAKAO_CHANNEL_URL
+# 서비스 계정에는 Firebase Admin(또는 Firebase Hosting/Functions/Rules 관리자 + Service Account User) 역할이 필요합니다.
+name: Deploy to Firebase
+
+on:
+  workflow_dispatch:
+    inputs:
+      only:
+        description: '배포 대상 (비우면 전체: hosting,functions,firestore,storage)'
+        required: false
+        default: ''
+
+permissions:
+  contents: read
+
+concurrency:
+  group: firebase-deploy
+  cancel-in-progress: false
+
+jobs:
+  deploy:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+
+      - name: Write .env.production
+        run: |
+          cat > .env.production <<ENV
+          VITE_DATA_MODE=firebase
+          VITE_FIREBASE_API_KEY=${{ vars.VITE_FIREBASE_API_KEY }}
+          VITE_FIREBASE_AUTH_DOMAIN=${{ vars.VITE_FIREBASE_AUTH_DOMAIN }}
+          VITE_FIREBASE_PROJECT_ID=${{ vars.FIREBASE_PROJECT_ID }}
+          VITE_FIREBASE_STORAGE_BUCKET=${{ vars.VITE_FIREBASE_STORAGE_BUCKET }}
+          VITE_FIREBASE_MESSAGING_SENDER_ID=${{ vars.VITE_FIREBASE_MESSAGING_SENDER_ID }}
+          VITE_FIREBASE_APP_ID=${{ vars.VITE_FIREBASE_APP_ID }}
+          VITE_FIREBASE_FUNCTIONS_REGION=asia-northeast3
+          VITE_PUBLIC_BASE_URL=${{ vars.VITE_PUBLIC_BASE_URL }}
+          VITE_KAKAO_CHANNEL_URL=${{ vars.VITE_KAKAO_CHANNEL_URL }}
+          ENV
+
+      - name: Install & build web
+        run: |
+          npm ci
+          npm run build
+
+      - name: Install & build functions
+        working-directory: functions
+        run: |
+          npm ci
+          npm run build
+
+      - name: Authenticate to Google Cloud
+        uses: google-github-actions/auth@v2
+        with:
+          credentials_json: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+      - name: Deploy
+        env:
+          ONLY: ${{ inputs.only }}
+          PROJECT: ${{ vars.FIREBASE_PROJECT_ID }}
+        run: |
+          # PUBLIC_BASE_URL 파라미터(메일 링크 기준 주소)를 함수 환경 파일로 전달
+          echo "PUBLIC_BASE_URL=${{ vars.VITE_PUBLIC_BASE_URL }}" > functions/.env
+          npx --yes firebase-tools@15 deploy --project "$PROJECT" --non-interactive ${ONLY:+--only "$ONLY"}

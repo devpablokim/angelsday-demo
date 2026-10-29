@@ -1,0 +1,16 @@
+rules_version = '2';
+
+// 행사 사진: 누구나 볼 수 있고(고객 페이지에 표시), 업로드는 관리자만.
+service firebase.storage {
+  match /b/{bucket}/o {
+    match /bookings/{bookingId}/photos/{fileName=**} {
+      allow read: if true;
+      allow write: if request.auth != null && request.auth.token.admin == true
+        && request.resource.size < 25 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+    }
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}

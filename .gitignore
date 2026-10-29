@@ -1,0 +1,19 @@
+node_modules/
+dist/
+dist-preview/
+functions/lib/
+functions/node_modules/
+*.log
+.DS_Store
+
+# 환경 변수 / 비밀 키 — 절대 커밋하지 마세요
+.env
+.env.local
+.env.*.local
+.secrets/*
+!.secrets/README.md
+*service-account*.json
+*-firebase-adminsdk-*.json
+.firebase/
+.runtimeconfig.json
+functions/.secret.local
