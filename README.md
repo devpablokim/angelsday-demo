@@ -194,7 +194,7 @@ npm run build
 firebase deploy
 ```
 
-웹사이트 주소는 **https://angelsday.web.app** 입니다 (`firebase.json` 의 `hosting.site: "angelsday"`, 프로젝트 `angelsday-9ff6f`).
+웹사이트 주소는 **https://angels-day.web.app** 입니다 (`firebase.json` 의 `hosting.site: "angels-day"`, 프로젝트 `angelsday-9ff6f`).
 
 Hosting 만 배포하려면 서비스 계정 키로 동작하는 스크립트를 쓸 수 있어요.
 기본 `firebase-adminsdk` 서비스 계정은 Service Usage 조회 권한이 없어 `firebase deploy` 가 403 으로 멈추는데,

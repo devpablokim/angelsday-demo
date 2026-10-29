@@ -11,7 +11,9 @@
     "preview": "vite preview",
     "typecheck": "tsc -p tsconfig.json --noEmit",
     "deploy": "npm run build && firebase deploy",
-    "deploy:hosting": "node scripts/deploy-hosting.mjs"
+    "deploy:hosting": "node scripts/deploy-hosting.mjs",
+    "deploy:rules": "node scripts/deploy-rules.mjs",
+    "build:firebase": "tsc -p tsconfig.json --noEmit && vite build --mode firebase"
   },
   "dependencies": {
     "firebase": "^13.1.0",
