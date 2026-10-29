@@ -23,6 +23,7 @@ body {
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
   -webkit-tap-highlight-color: transparent;
+  font-feature-settings: 'lnum' 1; /* Cormorant 숫자를 라이닝으로 (Pretendard 에는 영향 없음) */
 }
 
 img,

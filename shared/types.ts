@@ -128,6 +128,8 @@ export interface ScheduleItem {
 
 export interface Booking {
   id: string; // 고객 관리 URL 토큰을 겸합니다 (추측 불가능한 난수)
+  /** 예약 비밀번호 — 고객이 ‘내 행사 조회’에 입력하면 이 페이지가 열립니다 (예: K7MP-2QXR) */
+  accessCode?: string;
   eventType: EventType;
   date: ISODate;
   time: string; // 'HH:mm'

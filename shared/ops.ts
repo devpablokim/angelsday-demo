@@ -1,7 +1,7 @@
 // 예약(Booking)을 바꾸는 순수 함수 모음. 모든 변경은 타임라인에 기록됩니다.
 import { formatDate, todayKST } from './dates';
 import { defaultRequirements, eventConfig, honoreesFromForm } from './eventTypes';
-import { bookingToken, receiptNo, uid } from './ids';
+import { accessCode, bookingToken, receiptNo, uid } from './ids';
 import { generatePrep } from './prepTemplates';
 import { calcQuote } from './quote';
 import type {
@@ -60,6 +60,7 @@ export function createBooking(input: InquiryInput): Booking {
   const t = nowIso();
   const b: Booking = {
     id: bookingToken(),
+    accessCode: accessCode(),
     eventType: input.eventType,
     date: input.date,
     time: input.time,
