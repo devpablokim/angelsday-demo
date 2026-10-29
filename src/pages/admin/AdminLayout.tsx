@@ -7,6 +7,7 @@ import { useAdmin, useStore } from '../../data/hooks';
 const NAV: { to: string; label: string; icon: IconName; end?: boolean }[] = [
   { to: '/admin', label: '대시보드', icon: 'chart', end: true },
   { to: '/admin/bookings', label: '고객 관리', icon: 'users' },
+  { to: '/admin/preview', label: '고객 화면 보기', icon: 'external' },
   { to: '/admin/calendar', label: '캘린더', icon: 'calendar' },
   { to: '/admin/pricing', label: '가격표', icon: 'receipt' },
   { to: '/admin/emails', label: '메일 자동화', icon: 'mail' },

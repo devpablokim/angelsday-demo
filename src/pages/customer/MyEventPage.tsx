@@ -147,7 +147,7 @@ function StepPanel({ booking: b, view, current, onJump }: { booking: Booking; vi
         </div>
         <span className={`badge ${state === 'done' ? 'badge--ink' : state === 'current' ? 'badge--gold' : 'badge--outline'}`}>{state === 'done' ? '완료' : state === 'current' ? '진행 중' : '예정'}</span>
       </header>
-      {state !== 'todo' && <p className="body-sm text-muted step-panel__about">{def.about}</p>}
+      {state === 'done' && <p className="body-sm text-muted step-panel__about">{def.about}</p>}
       <div className="step-panel__content">{content}</div>
       <div className="step-panel__nav">
         {view > 1 && (
@@ -187,6 +187,12 @@ function BookingInfo({ booking: b }: { booking: Booking }) {
         <dd>{b.customer.name}</dd>
         <dt>담당 플래너</dt>
         <dd>{b.manager?.name ?? '배정 중'}</dd>
+        {b.accessCode && (
+          <>
+            <dt>예약 비밀번호</dt>
+            <dd className="code-text">{b.accessCode}</dd>
+          </>
+        )}
       </dl>
       <button className="btn btn--secondary btn--sm btn--block mt-16" onClick={async () => toast((await copyText(customerUrl(b.id))) ? '내 행사 페이지 링크를 복사했어요' : '복사하지 못했어요')}>
         <Icon name="copy" size={16} /> 이 페이지 링크 복사

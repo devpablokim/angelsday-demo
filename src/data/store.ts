@@ -28,6 +28,9 @@ export interface DataStore {
   listenCatalog(cb: (c: Catalog) => void): Unsubscribe;
   listenEmailRules(cb: (enabled: Record<string, boolean>) => void): Unsubscribe;
 
+  /** 예약 비밀번호 → 예약 ID (없으면 null) */
+  findBookingByCode(code: string): Promise<string | null>;
+
   // 쓰기
   createBooking(b: Booking): Promise<void>;
   saveBooking(b: Booking): Promise<void>;

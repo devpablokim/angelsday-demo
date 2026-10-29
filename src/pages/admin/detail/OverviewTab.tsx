@@ -1,5 +1,5 @@
 import { formatDateTime, won } from '@shared/dates';
-import { eventConfig } from '@shared/eventTypes';
+import { calendarName, eventConfig } from '@shared/eventTypes';
 import * as ops from '@shared/ops';
 import { calcQuote, expectedRevenue, paidAmount } from '@shared/quote';
 import { computeStep, depositPaid, nextAction, STEPS, subState, type SubState } from '@shared/steps';
@@ -60,6 +60,7 @@ export function OverviewTab({ booking: b }: { booking: Booking }) {
       customer: { name: form.name, phone: form.phone, email: form.email },
       manager: form.managerName ? { name: form.managerName, phone: form.managerPhone } : undefined,
       adminMemo: form.adminMemo,
+      calendarTitle: form.calendarTitle.trim() || undefined,
       requirements: { ...b.requirements, ...(cfg.usesHall && form.hallId ? { hallId: form.hallId } : {}), ...(!cfg.usesHall ? { location: form.location } : {}), guestsAdult: Math.max(1, form.guests - Number(b.requirements.guestsKids ?? 0)) },
     };
     next = ops.log(next, 'admin', 'edit', changed.length ? `예약 정보 변경: ${changed.join(', ')}` : '예약 기본 정보 수정', changed.length === 0);
@@ -220,6 +221,13 @@ export function OverviewTab({ booking: b }: { booking: Booking }) {
             <input className="input" type="tel" value={form.managerPhone} onChange={(e) => setForm({ ...form, managerPhone: e.target.value })} />
           </label>
         </div>
+        {cfg.usesHall && (
+          <label className="field mt-16">
+            <span className="field__label">캘린더 표시 행사명</span>
+            <input className="input" value={form.calendarTitle} onChange={(e) => setForm({ ...form, calendarTitle: e.target.value })} placeholder={calendarName(b.eventType, b.honorees)} />
+            <span className="field__hint">대관 가능일 캘린더에 보이는 이름이에요. 비워두면 ‘{calendarName(b.eventType, b.honorees)}’로 표시돼요.</span>
+          </label>
+        )}
         <label className="field mt-16">
           <span className="field__label">관리자 메모 (고객에게 보이지 않아요)</span>
           <textarea className="textarea" value={form.adminMemo} onChange={(e) => setForm({ ...form, adminMemo: e.target.value })} placeholder="VIP, 특이사항, 정산 메모 등" />
@@ -293,5 +301,6 @@ function toForm(b: Booking) {
     managerName: b.manager?.name ?? '',
     managerPhone: b.manager?.phone ?? '',
     adminMemo: b.adminMemo ?? '',
+    calendarTitle: b.calendarTitle ?? '',
   };
 }

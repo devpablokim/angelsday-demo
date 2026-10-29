@@ -83,7 +83,7 @@ export function renderEmail(ruleId: string, b: Booking, baseUrl: string, today =
           '아래 버튼을 누르면 고객님만의 행사 관리 페이지로 이동해요. 이 페이지에서 필요사항 작성부터 견적 확인, 결제, 준비, 행사 사진까지 모든 과정을 확인하실 수 있어요.',
           '먼저 STEP 1 필요사항을 작성해 주시면 맞춤 견적서를 보내드릴게요.',
         ],
-        facts,
+        facts: b.accessCode ? [...facts, { label: '예약 비밀번호', value: b.accessCode }] : facts,
         cta,
       };
     case 'req_reminder':

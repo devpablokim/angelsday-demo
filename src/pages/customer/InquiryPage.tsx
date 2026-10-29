@@ -326,6 +326,13 @@ export function InquiryDonePage() {
           <span className="overline mt-24">THANK YOU</span>
           <h1 className="display-md mt-8">문의가 접수되었어요</h1>
           <p className="body-md text-muted mt-12">{headlinePlain(b.eventType, b.honorees)} 함께 준비할 고객님만의 행사 페이지가 열렸어요.</p>
+          {b.accessCode && (
+            <div className="done__code">
+              <span className="label">예약 비밀번호</span>
+              <span className="done__code-value">{b.accessCode}</span>
+              <span className="caption">‘내 행사 조회’에서 이 비밀번호로 언제든 페이지를 열 수 있어요.</span>
+            </div>
+          )}
           <div className="done__link">
             <span className="caption">내 행사 관리 링크 · {b.customer.email}로도 보내드렸어요</span>
             <code>{url}</code>
@@ -350,7 +357,7 @@ export function InquiryDonePage() {
           <Link to={`/my/${b.id}`} className="btn btn--primary btn--lg btn--block mt-24">
             내 행사 페이지로 이동 <Icon name="arrowRight" size={18} />
           </Link>
-          <p className="caption mt-12">이 링크는 고객님만 아는 비밀 주소예요. 가족이나 함께 준비하는 분께만 공유해 주세요.</p>
+          <p className="caption mt-12">링크와 비밀번호는 고객님만 아는 정보예요. 가족이나 함께 준비하는 분께만 공유해 주세요.</p>
         </div>
       </div>
     </section>

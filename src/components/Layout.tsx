@@ -9,8 +9,10 @@ import { Icon } from './Icon';
 
 const NAV = [
   { to: '/calendar', label: '대관 가능일', en: 'SCHEDULE' },
+  { to: '/#halls', label: '홀 소개', en: 'PARTY HALL' },
   { to: '/#events', label: '행사 안내', en: 'PARTY TYPE' },
-  { to: '/#journey', label: '진행 과정', en: 'JOURNEY' },
+  { to: '/#gallery', label: '갤러리', en: 'GALLERY' },
+  { to: '/#location', label: '오시는 길', en: 'LOCATION' },
   { to: '/my', label: '내 행사 조회', en: 'MY EVENT' },
 ];
 

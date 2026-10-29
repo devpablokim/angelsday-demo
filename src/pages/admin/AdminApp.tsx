@@ -11,6 +11,7 @@ import { BookingsPage } from './BookingsPage';
 import { DashboardPage } from './DashboardPage';
 import { EmailsPage } from './EmailsPage';
 import { LoginPage } from './LoginPage';
+import { PreviewPage } from './PreviewPage';
 import { PricingPage } from './PricingPage';
 import { SettingsPage } from './SettingsPage';
 
@@ -36,6 +37,7 @@ export default function AdminApp() {
         <Route index element={<DashboardPage />} />
         <Route path="bookings" element={<BookingsPage />} />
         <Route path="bookings/:id" element={<BookingDetailPage />} />
+        <Route path="preview" element={<PreviewPage />} />
         <Route path="calendar" element={<AdminCalendarPage />} />
         <Route path="pricing" element={<PricingPage />} />
         <Route path="emails" element={<EmailsPage />} />

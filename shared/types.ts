@@ -138,6 +138,8 @@ export interface Booking {
   guests: number;
   customer: Customer;
   honorees: Honorees;
+  /** 공개 캘린더에 표시할 행사명 (비우면 ‘김진명&이진향 웨딩’처럼 자동 생성) */
+  calendarTitle?: string;
   inquiryMemo?: string;
   source: 'web' | 'phone' | 'kakao' | 'walkin';
 

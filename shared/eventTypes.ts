@@ -634,6 +634,23 @@ export function honoreeLabel(t: EventType, h: Honorees): string {
   }
 }
 
+/** 캘린더용 행사명 — ‘김진명&이진향 웨딩’, ‘박진연 칠순연’, ‘오아시스13기 송년회’ */
+export function calendarName(t: EventType, h: Honorees): string {
+  switch (t) {
+    case 'wedding':
+      return `${h.primary}&${h.secondary ?? ''} 웨딩`;
+    case 'dol':
+      return `${h.primary} 돌잔치`;
+    case 'birthday': {
+      const m = h.detail || '생신연';
+      return `${h.primary} ${m.endsWith('연') ? m : `${m}연`}`;
+    }
+    case 'corporate':
+    case 'catering':
+      return `${h.primary} ${h.detail ?? ''}`.trim();
+  }
+}
+
 /** 고객 페이지 헤드라인. 강조할 이름은 [[ ]] 로 감쌉니다. */
 export function headline(t: EventType, h: Honorees): string {
   switch (t) {

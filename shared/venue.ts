@@ -26,10 +26,7 @@ export interface Hall {
   seats: number; // 총 좌석
   desc: string;
   bestFor: string;
-  image?: string;
 }
-
-const IMG = 'https://www.xn--2n1b810a6lcv2bcza.com/img_up/shop_pds/angelfd/design/my_xml';
 
 export const HALLS: Hall[] = [
   {
@@ -40,7 +37,6 @@ export const HALLS: Hall[] = [
     seats: 120,
     desc: '통창뷰의 현대적인 감각, 세련된 인테리어',
     bestFor: '돌잔치 · 스몰웨딩 · 기업행사 · 회식',
-    image: `${IMG}/rib1780674143.jpg`,
   },
   {
     id: 'aloha',
@@ -50,7 +46,6 @@ export const HALLS: Hall[] = [
     seats: 140,
     desc: '고급스러운 화이트 인테리어',
     bestFor: '돌잔치 · 스몰웨딩 · 기업행사 · 회식',
-    image: `${IMG}/kakaotalk_20260504_004630147_061780738565.jpg`,
   },
   {
     id: 'bellita',
@@ -60,7 +55,6 @@ export const HALLS: Hall[] = [
     seats: 80,
     desc: '통창뷰와 야경, 원목의 자연스러움이 편안한 공간',
     bestFor: '소규모 돌잔치 · 가족·지인 모임',
-    image: `${IMG}/kakaotalk_20260531_234623507_011780674302.jpg`,
   },
   {
     id: 'sia',
@@ -70,7 +64,6 @@ export const HALLS: Hall[] = [
     seats: 56,
     desc: '통창뷰, 심플함이 돋보이는 모던 인테리어',
     bestFor: '돌잔치 · 스몰웨딩 · 기업행사 · 회식',
-    image: `${IMG}/1bb1b9ae-c2a5-4bf8-b50a-9b2cc7b23791780674847.jpg`,
   },
   {
     id: 'whole',

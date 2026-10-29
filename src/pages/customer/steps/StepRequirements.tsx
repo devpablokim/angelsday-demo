@@ -56,11 +56,37 @@ export function StepRequirementsForm({ booking: b }: { booking: Booking }) {
     return lines.reduce((s, l) => s + lineAmount(l), 0);
   }, [b, values, catalog]);
 
+  const sections = cfg.sections;
+  const [idx, setIdx] = useState(0);
+  const section = sections[idx];
+  const isLast = idx === sections.length - 1;
+  const sectionMissing = missing.filter((m) => section.fields.some((f) => f.key === m.key));
+  const top = useRef<HTMLDivElement>(null);
+
+  const go = (n: number) => {
+    setTried(false);
+    setIdx(n);
+    requestAnimationFrame(() => {
+      const y = (top.current?.getBoundingClientRect().top ?? 0) + window.scrollY - 80;
+      window.scrollTo({ top: y, behavior: 'smooth' });
+    });
+  };
+
+  function next() {
+    if (sectionMissing.length) {
+      setTried(true);
+      toast(`${sectionMissing.map((m) => m.label).join(', ')}을(를) 선택해 주세요`, 'error');
+      return;
+    }
+    go(idx + 1);
+  }
+
   async function submit() {
     setTried(true);
     if (missing.length) {
-      toast(`필수 항목 ${missing.length}개를 선택해 주세요: ${missing.map((m) => m.label).join(', ')}`, 'error');
-      document.getElementById(`req-${missing[0].key}`)?.scrollIntoView({ behavior: 'smooth', block: 'center' });
+      const first = sections.findIndex((sec) => sec.fields.some((f) => missing.some((m) => m.key === f.key)));
+      toast(`필수 항목을 선택해 주세요: ${missing.map((m) => m.label).join(', ')}`, 'error');
+      if (first >= 0 && first !== idx) go(first);
       return;
     }
     setBusy(true);
@@ -72,45 +98,55 @@ export function StepRequirementsForm({ booking: b }: { booking: Booking }) {
   }
 
   return (
-    <div className="req-form">
-      <nav className="req-nav chip-row" aria-label="작성 항목">
-        {cfg.sections.map((s) => (
-          <a key={s.id} href={`#sec-${s.id}`} className="chip chip--sm" onClick={(e) => { e.preventDefault(); document.getElementById(`sec-${s.id}`)?.scrollIntoView({ behavior: 'smooth', block: 'start' }); }}>
-            {s.title}
-          </a>
-        ))}
-      </nav>
-      {cfg.sections.map((s, i) => (
-        <section key={s.id} id={`sec-${s.id}`} className="req-section">
-          <h3 className="req-section__title">
-            <span className="numeral">{String(i + 1).padStart(2, '0')}</span> {s.title}
-          </h3>
-          {s.desc && <p className="caption">{s.desc}</p>}
-          <div className="req-section__fields">
-            {s.fields
-              .filter((f) => isFieldVisible(f, values))
-              .map((f) => (
-                <div key={f.key} id={`req-${f.key}`} className={tried && missing.some((m) => m.key === f.key) ? 'is-missing' : undefined}>
-                  <FieldInput field={f} value={values[f.key]} onChange={(v) => set(f.key, v)} catalog={catalog} hallOptions={f.kind === 'hall' ? hallOptions : undefined} guests={guests} />
-                </div>
-              ))}
-          </div>
-        </section>
-      ))}
-
-      <div className="req-submit">
-        <div className="req-submit__info">
-          <span className="caption">
-            필수 {requiredTotal - missing.length}/{requiredTotal} · {saved === 'saving' ? '저장 중…' : saved === 'saved' ? '자동 저장됨' : '입력하면 자동 저장돼요'}
+    <div className="req-form" ref={top}>
+      <div className="req-progress">
+        <div className="row between">
+          <span className="label">
+            {idx + 1} / {sections.length}
           </span>
-          <span className="title-sm">
-            예상 금액 약 <span className="text-gold">{wonShort(estimate)}</span>
-          </span>
-          <span className="caption">할인 전 금액이에요. 최종 견적은 플래너가 확인 후 보내드려요.</span>
+          <span className="caption">{saved === 'saving' ? '저장 중…' : saved === 'saved' ? '자동 저장됨' : '입력하면 자동 저장돼요'}</span>
         </div>
-        <button className="btn btn--primary btn--lg" onClick={submit} disabled={busy}>
-          {busy ? <span className="spinner" /> : '필요사항 제출하기'}
-        </button>
+        <div className="req-progress__bar">
+          {sections.map((sec, i) => (
+            <button key={sec.id} type="button" className={`req-progress__seg ${i < idx ? 'is-done' : i === idx ? 'is-current' : ''}`} onClick={() => go(i)} aria-label={`${i + 1}. ${sec.title}`} />
+          ))}
+        </div>
+      </div>
+
+      <section key={section.id} className="req-section">
+        <h3 className="req-section__title">{section.title}</h3>
+        {section.desc && <p className="caption">{section.desc}</p>}
+        <div className="req-section__fields">
+          {section.fields
+            .filter((f) => isFieldVisible(f, values))
+            .map((f) => (
+              <div key={f.key} id={`req-${f.key}`} className={tried && missing.some((m) => m.key === f.key) ? 'is-missing' : undefined}>
+                <FieldInput field={f} value={values[f.key]} onChange={(v) => set(f.key, v)} catalog={catalog} hallOptions={f.kind === 'hall' ? hallOptions : undefined} guests={guests} />
+              </div>
+            ))}
+        </div>
+      </section>
+
+      <div className="req-footer">
+        <p className="caption req-footer__estimate">
+          선택하신 구성 기준 예상 금액 <b className="text-gold">약 {wonShort(estimate)}</b> · 할인 전, 최종 견적은 플래너가 보내드려요 (필수 {requiredTotal - missing.length}/{requiredTotal})
+        </p>
+        <div className="req-footer__buttons">
+          {idx > 0 && (
+            <button type="button" className="btn btn--secondary btn--lg" onClick={() => go(idx - 1)}>
+              이전
+            </button>
+          )}
+          {isLast ? (
+            <button type="button" className="btn btn--primary btn--lg grow" onClick={submit} disabled={busy}>
+              {busy ? <span className="spinner" /> : '필요사항 제출하기'}
+            </button>
+          ) : (
+            <button type="button" className="btn btn--primary btn--lg grow" onClick={next}>
+              다음 · {sections[idx + 1].title}
+            </button>
+          )}
+        </div>
       </div>
     </div>
   );

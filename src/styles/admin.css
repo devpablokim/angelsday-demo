@@ -311,3 +311,20 @@ label.btn { cursor: pointer; }
 
 /* 시트 안 표 정렬 */
 .admin .table td .row { flex-wrap: nowrap; }
+
+/* ── 고객 화면 보기 (단계별 미리보기) ── */
+.preview-steps { display: flex; flex-direction: column; gap: 16px; }
+.preview-step { padding: 0; overflow: hidden; }
+.preview-step__head { display: flex; align-items: center; gap: 14px; padding: 16px 20px; background: var(--color-canvas-soft); border-bottom: 1px solid var(--color-hairline); }
+.preview-step__no { width: 34px; height: 34px; flex: none; border-radius: 50%; background: var(--color-ink); color: var(--color-gold-light); display: grid; place-items: center; font-size: 17px; }
+.preview-step__empty { padding: 16px 20px; }
+.preview-list { display: flex; flex-direction: column; }
+.preview-item { display: grid; gap: 12px; padding: 16px 20px; border-bottom: 1px solid var(--color-hairline-soft); grid-template-columns: 1fr; }
+.preview-item:last-child { border-bottom: 0; }
+.preview-item__code { display: flex; flex-direction: column; gap: 4px; }
+.preview-code { display: inline-flex; align-items: center; gap: 6px; align-self: flex-start; padding: 6px 10px; border-radius: var(--radius-sm); background: var(--color-gold-pale); border: 1px solid var(--color-hairline-gold); font-weight: 700; letter-spacing: 0.08em; color: var(--color-ink); font-variant-numeric: tabular-nums; }
+.preview-item__actions { display: flex; gap: 8px; flex-wrap: wrap; }
+@media (min-width: 900px) {
+  .preview-item { grid-template-columns: minmax(0, 1fr) 170px auto; align-items: center; }
+}
+.detail-head__code { letter-spacing: 0.06em; }

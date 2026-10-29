@@ -2,10 +2,11 @@
 import { DEFAULT_CATALOG } from '@shared/catalog';
 import { localBotReply } from '@shared/chatFaq';
 import { enabledMap } from '@shared/emailRules';
+import { normalizeCode } from '@shared/ids';
 import type { Booking, CalendarEntry, Catalog } from '@shared/types';
 import { initializeApp } from 'firebase/app';
 import { getAuth, onAuthStateChanged, signInWithEmailAndPassword, signOut } from 'firebase/auth';
-import { collection, deleteDoc, doc, initializeFirestore, onSnapshot, orderBy, query, setDoc, where } from 'firebase/firestore';
+import { collection, deleteDoc, doc, getDoc, initializeFirestore, onSnapshot, orderBy, query, setDoc, where } from 'firebase/firestore';
 import { getFunctions, httpsCallable } from 'firebase/functions';
 import { getDownloadURL, getStorage, ref, uploadBytes } from 'firebase/storage';
 import type { AdminUser, ChatTurn, DataStore } from './store';
@@ -53,8 +54,15 @@ export function createFirebaseStore(): DataStore {
       return onSnapshot(doc(db, 'settings', 'emailRules'), (s) => cb(enabledMap(s.exists() ? (s.data().enabled as Record<string, boolean>) : undefined)));
     },
 
+    async findBookingByCode(code) {
+      const n = normalizeCode(code);
+      if (n.length < 6) return null;
+      const snap = await getDoc(doc(db, 'codes', n));
+      return snap.exists() ? (snap.data().bookingId as string) : null;
+    },
     async createBooking(b) {
       await setDoc(doc(db, 'bookings', b.id), b);
+      if (b.accessCode) await setDoc(doc(db, 'codes', normalizeCode(b.accessCode)), { bookingId: b.id, createdAt: b.createdAt });
     },
     async saveBooking(b) {
       await setDoc(doc(db, 'bookings', b.id), { ...b, updatedAt: new Date().toISOString() });

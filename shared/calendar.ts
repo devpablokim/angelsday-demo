@@ -1,8 +1,7 @@
+import { calendarName } from './eventTypes';
 import { depositPaid } from './steps';
 import type { Booking, CalendarEntry, HallId, ISODate } from './types';
 import { ROOM_HALLS, slotOf, TIME_SLOTS } from './venue';
-
-const PUBLIC_TITLES = { wedding: '웨딩', dol: '돌잔치', birthday: '생신연', corporate: '기업행사', catering: '케이터링' } as const;
 
 /** 공개 캘린더 문서 ID — 고객 관리 토큰(booking.id)이 노출되지 않도록 단방향 해시 */
 export function publicEntryId(bookingId: string): string {
@@ -16,7 +15,7 @@ export function publicEntryId(bookingId: string): string {
   return `bk${h1.toString(36)}${h2.toString(36)}`;
 }
 
-/** 예약 → 고객 공개용 일정 (이름·연락처 없이 행사 종류/홀/상태만). 출장 케이터링·취소 건은 제외 */
+/** 예약 → 공개 캘린더 일정 (행사명 · 홀 · 상태만, 연락처 제외). 출장 케이터링·취소 건은 제외 */
 export function publicEntryFromBooking(b: Booking): CalendarEntry | null {
   if (b.cancelledAt || b.eventType === 'catering' || !b.hallId) return null;
   return {
@@ -24,7 +23,7 @@ export function publicEntryFromBooking(b: Booking): CalendarEntry | null {
     date: b.date,
     time: b.time,
     hallId: b.hallId,
-    title: PUBLIC_TITLES[b.eventType],
+    title: b.calendarTitle?.trim() || calendarName(b.eventType, b.honorees),
     eventType: b.eventType,
     status: depositPaid(b) ? 'confirmed' : 'pending',
   };

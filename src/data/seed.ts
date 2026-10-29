@@ -6,6 +6,7 @@ import { uid } from '@shared/ids';
 import * as ops from '@shared/ops';
 import { calcQuote, draftQuote } from '@shared/quote';
 import type { Booking, CalendarEntry, Requirements } from '@shared/types';
+import { img } from '../content/photos';
 
 const MANAGER = { name: '김지은 플래너', phone: '010-7113-4005' };
 
@@ -20,14 +21,7 @@ function when(today: string, dayOffset: number, hour = 10, minute = 0): Date {
   return new Date(kstDateTime(addDays(today, dayOffset), hour, minute));
 }
 
-const GALLERY = [
-  'https://www.xn--2n1b810a6lcv2bcza.com/thum_img/angelfd/2026/432ff5141757eec230a1b823be5e1d49_water__c1_w350_h280.jpg',
-  'https://www.xn--2n1b810a6lcv2bcza.com/thum_img/angelfd/2026/db98f2fb55491f31ae673e81a9a23c67_water__c1_w350_h280.jpg',
-  'https://www.xn--2n1b810a6lcv2bcza.com/thum_img/angelfd/2026/8241e0ec79029d2c9564f4006a9ca4ab_water__c1_w350_h280.jpg',
-  'https://www.xn--2n1b810a6lcv2bcza.com/thum_img/angelfd/2026/5f6c89458025acaa69d61aa7c4874565_water__c1_w350_h280.jpg',
-  'https://www.xn--2n1b810a6lcv2bcza.com/thum_img/angelfd/2026/93df8887a1c8678353d5a00789af9113_water__c1_w350_h280.jpg',
-  'https://www.xn--2n1b810a6lcv2bcza.com/thum_img/angelfd/2026/b34afca79154ebea38c7774362cfe1df_water__c1_w350_h280.jpg',
-];
+const GALLERY = ['g-11', 'g-10', 'g-15', 'g-17', 'g-12', 'g-14'].map((n) => img(`gallery/${n}`));
 
 export const DEMO_IDS = {
   wedding: 'demo-wedding-mongryong',
@@ -40,9 +34,21 @@ export const DEMO_IDS = {
   dolSoon: 'demo-dol-seojun',
 } as const;
 
+/** 데모 고객별 예약 비밀번호 (실제 예약은 문의 접수 시 무작위 8자리로 발급) */
+export const DEMO_CODES: Record<string, string> = {
+  'demo-catering-church': 'CHRC-2030',
+  'demo-dol-hayun': 'HAYN-2026',
+  'demo-birthday-youngja': 'YJ7A-2026',
+  'demo-corporate-hangang': 'HGTC-2026',
+  'demo-wedding-mongryong': 'LVMC-2027',
+  'demo-dol-seojun': 'SJUN-2026',
+  'demo-corporate-today': 'GPBV-2026',
+  'demo-wedding-photos': 'JMJH-2026',
+};
+
 function make(id: string, input: ops.InquiryInput, createdAt: Date): Booking {
   const b = ops.at(createdAt, () => ops.createBooking(input));
-  return { ...b, id, manager: MANAGER };
+  return { ...b, id, accessCode: DEMO_CODES[id] ?? b.accessCode, manager: MANAGER };
 }
 
 function submit(b: Booking, req: Requirements, t: Date): Booking {
@@ -248,16 +254,18 @@ export function buildSeed(now: Date = new Date()): { bookings: Booking[]; calend
   }
   // 외부(전화) 예약 · 휴무
   const ext = [
-    { off: 12, dow: 6, time: '11:00', hallId: 'lovely' as const, title: '돌잔치', status: 'confirmed' as const },
-    { off: 12, dow: 6, time: '18:00', hallId: 'aloha' as const, title: '기업행사', status: 'confirmed' as const },
-    { off: 19, dow: 0, time: '11:00', hallId: 'bellita' as const, title: '생신연', status: 'pending' as const },
-    { off: 26, dow: 6, time: '13:30', hallId: 'whole' as const, title: '웨딩', status: 'confirmed' as const },
-    { off: 33, dow: 6, time: '11:00', hallId: 'sia' as const, title: '돌잔치', status: 'confirmed' as const },
-    { off: 33, dow: 6, time: '13:30', hallId: 'lovely' as const, title: '웨딩', status: 'pending' as const },
-    { off: 40, dow: 0, time: '18:00', hallId: 'aloha' as const, title: '기업행사', status: 'confirmed' as const },
-    { off: 5, dow: 5, time: '18:00', hallId: 'lovely' as const, title: '기업행사', status: 'confirmed' as const },
-    { off: 54, dow: 5, time: '18:00', hallId: 'aloha' as const, title: '송년회', status: 'confirmed' as const },
-    { off: 61, dow: 5, time: '18:00', hallId: 'lovely' as const, title: '송년회', status: 'pending' as const },
+    { off: 12, dow: 6, time: '11:00', hallId: 'lovely' as const, title: '이서아 돌잔치', status: 'confirmed' as const },
+    { off: 12, dow: 6, time: '18:00', hallId: 'aloha' as const, title: '한국PR학회 정기 컨퍼런스', status: 'confirmed' as const },
+    { off: 19, dow: 0, time: '11:00', hallId: 'bellita' as const, title: '박진연 칠순연', status: 'pending' as const },
+    { off: 26, dow: 6, time: '13:30', hallId: 'whole' as const, title: '김진명&이진향 웨딩', status: 'confirmed' as const },
+    { off: 33, dow: 6, time: '11:00', hallId: 'sia' as const, title: '강하늘 돌잔치', status: 'confirmed' as const },
+    { off: 33, dow: 6, time: '13:30', hallId: 'lovely' as const, title: '정민호&최유리 웨딩', status: 'pending' as const },
+    { off: 40, dow: 0, time: '18:00', hallId: 'aloha' as const, title: '김포시 상공회의소 신년 하례회', status: 'confirmed' as const },
+    { off: 5, dow: 5, time: '18:00', hallId: 'lovely' as const, title: '한빛산악회 정기총회', status: 'confirmed' as const },
+    { off: 54, dow: 5, time: '18:00', hallId: 'aloha' as const, title: '오아시스13기 송년회', status: 'confirmed' as const },
+    { off: 61, dow: 5, time: '18:00', hallId: 'lovely' as const, title: '김포시청 행정과 송년회', status: 'pending' as const },
+    { off: 47, dow: 6, time: '11:00', hallId: 'bellita' as const, title: '윤채원 돌잔치', status: 'confirmed' as const },
+    { off: 68, dow: 6, time: '11:00', hallId: 'aloha' as const, title: '이정숙 팔순연', status: 'confirmed' as const },
   ];
   for (const e of ext) calendar.push({ id: uid('cal'), date: nextDow(addDays(T, e.off), e.dow), time: e.time, hallId: e.hallId, title: e.title, status: e.status, note: '전화 예약 (관리자 등록)' });
   calendar.push({ id: uid('cal'), date: nextDow(addDays(T, 70), 1), status: 'blocked', title: '정기 휴무 · 시설 점검', note: '전관 휴무' });

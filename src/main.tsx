@@ -4,6 +4,7 @@ import './styles/base.css';
 import './styles/components.css';
 import './styles/patterns.css';
 import './styles/customer.css';
+import './styles/landing.css';
 
 import { StrictMode } from 'react';
 import { createRoot } from 'react-dom/client';

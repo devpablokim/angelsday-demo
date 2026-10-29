@@ -97,6 +97,11 @@ export function BookingDetailPage() {
             <span>{b.guests}명</span>
           </p>
           <p className="detail-head__contact">
+            {b.accessCode && (
+              <span className="badge badge--ink detail-head__code" title="예약 비밀번호">
+                <Icon name="lock" size={12} /> {b.accessCode}
+              </span>
+            )}
             <span className="text-ink">{b.customer.name}</span>
             <a href={`tel:${b.customer.phone}`} className="link-plain">
               <Icon name="phone" size={14} /> {b.customer.phone}

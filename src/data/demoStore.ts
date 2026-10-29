@@ -3,13 +3,14 @@ import { publicEntryFromBooking } from '@shared/calendar';
 import { localBotReply } from '@shared/chatFaq';
 import { DEFAULT_CATALOG } from '@shared/catalog';
 import { dueEmails, EMAIL_RULES, enabledMap, renderEmail, withEmailLog } from '@shared/emailRules';
+import { normalizeCode } from '@shared/ids';
 import * as ops from '@shared/ops';
 import { calcQuote } from '@shared/quote';
 import type { Booking, CalendarEntry, Catalog } from '@shared/types';
 import { buildSeed } from './seed';
 import { customerUrl, ENV, type AdminUser, type DataStore } from './store';
 
-const KEY = 'angelsday.demo.v1';
+const KEY = 'angelsday.demo.v2';
 const ADMIN_KEY = 'angelsday.demo.admin';
 
 interface DemoState {
@@ -131,6 +132,12 @@ export function createDemoStore(): DataStore {
     listenAdminCalendar: (cb) => subscribe(() => clone(state.calendar), cb),
     listenCatalog: (cb) => subscribe(() => clone(state.catalog), cb),
     listenEmailRules: (cb) => subscribe(() => ({ ...state.emailRules }), cb),
+
+    async findBookingByCode(code) {
+      await sleep(250);
+      const n = normalizeCode(code);
+      return (n && state.bookings.find((b) => b.accessCode && normalizeCode(b.accessCode) === n && !b.cancelledAt)?.id) || null;
+    },
 
     async createBooking(b) {
       await sleep(400);

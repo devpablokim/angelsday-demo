@@ -55,7 +55,7 @@ export function BookingsPage() {
         if (type !== 'all' && b.eventType !== type) return false;
         if (!showPast && b.date < today) return false;
         if (!needle) return true;
-        const hay = [b.customer.name, b.customer.phone, b.customer.email, b.honorees.primary, b.honorees.secondary, b.honorees.detail].join(' ').toLowerCase();
+        const hay = [b.customer.name, b.customer.phone, b.customer.email, b.honorees.primary, b.honorees.secondary, b.honorees.detail, b.accessCode].join(' ').toLowerCase();
         return hay.includes(needle) || hay.replace(/-/g, '').includes(needle.replace(/-/g, ''));
       })
       .sort((a, z) => (sort === 'date' ? a.b.date.localeCompare(z.b.date) || a.b.time.localeCompare(z.b.time) : z.b.updatedAt.localeCompare(a.b.updatedAt)));
@@ -140,6 +140,7 @@ export function BookingsPage() {
                         </span>
                         <span className="caption">
                           {b.customer.name} · {b.customer.phone}
+                          {b.accessCode && <span className="code-text"> · {b.accessCode}</span>}
                           {b.source !== 'web' && <span className="badge badge--outline" style={{ marginLeft: 6 }}>{b.source === 'phone' ? '전화' : b.source}</span>}
                         </span>
                       </Link>
@@ -190,7 +191,10 @@ export function BookingsPage() {
                     {formatDate(b.date)} {b.time} · {b.eventType === 'catering' ? '출장' : hallName(b.hallId)} · {b.guests}명
                   </div>
                   <div className="row between mt-8">
-                    <span className="caption">{b.customer.name}</span>
+                    <span className="caption">
+                      {b.customer.name}
+                      {b.accessCode && <span className="code-text"> · {b.accessCode}</span>}
+                    </span>
                     <span className="price">
                       {won(rev.amount)} <span className="caption">{rev.source === 'quote' ? '견적' : '추정'}</span>
                     </span>
