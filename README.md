@@ -194,6 +194,20 @@ npm run build
 firebase deploy
 ```
 
+웹사이트 주소는 **https://angelsday.web.app** 입니다 (`firebase.json` 의 `hosting.site: "angelsday"`, 프로젝트 `angelsday-9ff6f`).
+
+Hosting 만 배포하려면 서비스 계정 키로 동작하는 스크립트를 쓸 수 있어요.
+기본 `firebase-adminsdk` 서비스 계정은 Service Usage 조회 권한이 없어 `firebase deploy` 가 403 으로 멈추는데,
+이 스크립트는 Hosting REST API 를 직접 호출하므로 그 권한이 필요 없습니다.
+
+```bash
+npm run build
+npm run deploy:hosting
+```
+
+Functions · Firestore 규칙까지 `firebase deploy` 로 올리려면 Google Cloud 콘솔 → IAM 에서 이 서비스 계정에
+**편집자(Editor)** 와 **서비스 계정 사용자(Service Account User)** 역할을 추가하거나, 프로젝트 소유자 계정으로 `firebase login` 후 배포하세요.
+
 ### 6-5. 관리자 지정 · 초기 설정
 
 ```bash
