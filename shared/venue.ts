@@ -12,6 +12,8 @@ export const VENUE = {
   ceo: '이희자',
   bizNo: '129-34-17826',
   homepage: 'https://www.엔젤스데이.com',
+  /** 예약금 무통장입금 계좌 — 실제 운영 전 업체 계좌로 바꿔 주세요 (PG 결제는 업체 가맹 심사 후 별도 연동) */
+  bank: { name: '하나은행', account: '000-000000-00000', holder: '엔젤스데이 파티하우스' },
   cateringSite: 'https://www.angelsdaycatering.com/',
   parking: '신한프라자 지하 주차장 이용 (행사 고객 무료 주차 등록 — 데스크에 차량번호를 알려주세요)',
   mapUrl: 'https://map.naver.com/p/search/%EA%B9%80%ED%8F%AC%ED%95%9C%EA%B0%954%EB%A1%9C%20113',

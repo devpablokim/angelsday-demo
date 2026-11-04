@@ -328,3 +328,17 @@ label.btn { cursor: pointer; }
   .preview-item { grid-template-columns: minmax(0, 1fr) 170px auto; align-items: center; }
 }
 .detail-head__code { letter-spacing: 0.06em; }
+
+/* 대시보드 · 고객이 머무는 단계 */
+.step-board { display: grid; gap: 10px; grid-template-columns: repeat(2, minmax(0, 1fr)); }
+@media (min-width: 900px) { .step-board { grid-template-columns: repeat(6, minmax(0, 1fr)); } }
+.step-board__col { border: 1px solid var(--color-hairline); border-radius: var(--radius-md); background: var(--color-canvas-soft); padding: 10px; min-width: 0; }
+.step-board__head { display: flex; align-items: center; gap: 8px; margin-bottom: 8px; }
+.step-board__list { display: flex; flex-direction: column; gap: 6px; }
+.step-board__item { display: flex; justify-content: space-between; gap: 6px; padding: 8px 10px; border-radius: var(--radius-sm); background: #fff; border: 1px solid var(--color-hairline); font-size: 13px; color: var(--color-ink); }
+.step-board__item.is-late { border-color: var(--color-status-promo, #b4532a); box-shadow: inset 3px 0 0 var(--color-status-promo, #b4532a); }
+.step-board__name { min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.step-board__days { flex: none; font-size: 12px; color: var(--color-muted); }
+.step-board__item.is-late .step-board__days { color: var(--color-status-promo, #b4532a); font-weight: 600; }
+.step-board__empty { padding: 4px 2px; }
+.step-mini__days { font-size: 11px; color: var(--color-muted); }

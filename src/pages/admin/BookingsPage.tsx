@@ -2,7 +2,7 @@ import { ddayLabel, formatDate, todayKST, won } from '@shared/dates';
 import { EVENT_TYPE_LIST, EVENT_TYPES, eventConfig, honoreeLabel } from '@shared/eventTypes';
 import * as ops from '@shared/ops';
 import { expectedRevenue } from '@shared/quote';
-import { computeStep, STEPS } from '@shared/steps';
+import { computeStep, daysInStep, STEPS } from '@shared/steps';
 import type { Booking, EventType, HallId, Requirements, StepNo } from '@shared/types';
 import { HALLS, hallName, TIME_SLOTS } from '@shared/venue';
 import { useMemo, useState, type FormEvent } from 'react';
@@ -13,7 +13,7 @@ import { Counter, Empty, EventBadge, PageLoading, Sheet, useToast } from '../../
 import { useBookings, useCatalog, useStore, useToday } from '../../data/hooks';
 import { errorMessage, lastActivity } from './adminUtils';
 
-export function StepMini({ step, cancelled }: { step: StepNo; cancelled?: boolean }) {
+export function StepMini({ step, cancelled, days }: { step: StepNo; cancelled?: boolean; days?: number }) {
   if (cancelled) return <span className="badge badge--error">취소</span>;
   return (
     <span className="step-mini" title={`STEP ${step} ${STEPS[step - 1].title}`}>
@@ -25,6 +25,7 @@ export function StepMini({ step, cancelled }: { step: StepNo; cancelled?: boolea
       <span className="step-mini__label">
         {step}. {STEPS[step - 1].short}
       </span>
+      {days !== undefined && <span className="step-mini__days">{days === 0 ? '오늘 진입' : `${days}일째`}</span>}
     </span>
   );
 }
@@ -160,7 +161,7 @@ export function BookingsPage() {
                       </div>
                     </td>
                     <td>
-                      <StepMini step={s} cancelled={!!b.cancelledAt} />
+                      <StepMini step={s} cancelled={!!b.cancelledAt} days={b.cancelledAt ? undefined : daysInStep(b, today)} />
                     </td>
                     <td className="num">
                       <div className="stack">
@@ -184,7 +185,7 @@ export function BookingsPage() {
                       <EventBadge type={b.eventType} short />
                       <span className="numeral dday-cell">{ddayLabel(b.date, today)}</span>
                     </span>
-                    <StepMini step={s} cancelled={!!b.cancelledAt} />
+                    <StepMini step={s} cancelled={!!b.cancelledAt} days={b.cancelledAt ? undefined : daysInStep(b, today)} />
                   </div>
                   <div className="title-sm mt-8">{honoreeLabel(b.eventType, b.honorees)}</div>
                   <div className="caption">

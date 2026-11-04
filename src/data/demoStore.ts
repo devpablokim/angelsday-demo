@@ -10,7 +10,7 @@ import type { Booking, CalendarEntry, Catalog } from '@shared/types';
 import { buildSeed } from './seed';
 import { customerUrl, ENV, type AdminUser, type DataStore } from './store';
 
-const KEY = 'angelsday.demo.v2';
+const KEY = 'angelsday.demo.v3';
 const ADMIN_KEY = 'angelsday.demo.admin';
 
 interface DemoState {

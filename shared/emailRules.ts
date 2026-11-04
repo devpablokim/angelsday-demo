@@ -11,7 +11,7 @@ import { hallName, VENUE } from './venue';
  * - relative: 기준일(행사일·문의일·견적 발송일) ± N일 오전 10시(KST) 발송
  * Cloud Functions 의 매일 스케줄러와 관리자 화면(발송 예정 미리보기)이 같은 규칙을 사용합니다.
  */
-export type EmailEvent = 'created' | 'quote_sent' | 'adjust_replied' | 'deposit_paid' | 'photos_released';
+export type EmailEvent = 'created' | 'quote_sent' | 'adjust_replied' | 'transfer_notified' | 'deposit_paid' | 'balance_paid' | 'photos_released' | 'revision_replied';
 export type Anchor = 'eventDate' | 'createdAt' | 'quoteSentAt' | 'photosReleasedAt';
 export type Condition = 'always' | 'step1' | 'step2_quote_sent' | 'paid' | 'paid_not_done' | 'photos';
 
@@ -29,14 +29,17 @@ export const EMAIL_RULES: EmailRule[] = [
   { id: 'quote_ready', name: '견적서 도착 알림', trigger: { type: 'event', event: 'quote_sent' }, condition: 'always', defaultEnabled: true },
   { id: 'quote_followup', name: '견적 확인 후속 안내 (발송 +3일)', trigger: { type: 'relative', anchor: 'quoteSentAt', offsetDays: 3, hour: 10 }, condition: 'step2_quote_sent', defaultEnabled: true },
   { id: 'adjust_reply', name: '조정 요청 답변 알림', trigger: { type: 'event', event: 'adjust_replied' }, condition: 'always', defaultEnabled: true },
-  { id: 'deposit_paid', name: '예약 확정 · 예약금 영수증', trigger: { type: 'event', event: 'deposit_paid' }, condition: 'always', defaultEnabled: true },
+  { id: 'transfer_notified', name: '입금 알림 접수 · 확인 중 안내', trigger: { type: 'event', event: 'transfer_notified' }, condition: 'always', defaultEnabled: true },
+  { id: 'deposit_paid', name: '입금 확인 · 예약 확정 · 영수증', trigger: { type: 'event', event: 'deposit_paid' }, condition: 'always', defaultEnabled: true },
   { id: 'd60', name: 'D-60 준비 일정 안내', trigger: { type: 'relative', anchor: 'eventDate', offsetDays: -60, hour: 10 }, condition: 'paid_not_done', defaultEnabled: true },
   { id: 'd30', name: 'D-30 세부 연출 · 메뉴 확정 안내', trigger: { type: 'relative', anchor: 'eventDate', offsetDays: -30, hour: 10 }, condition: 'paid_not_done', defaultEnabled: true },
   { id: 'd14', name: 'D-14 영상 · 음악 · 자료 전달 요청', trigger: { type: 'relative', anchor: 'eventDate', offsetDays: -14, hour: 10 }, condition: 'paid_not_done', defaultEnabled: true },
   { id: 'd7', name: 'D-7 최종 인원 확정 요청', trigger: { type: 'relative', anchor: 'eventDate', offsetDays: -7, hour: 10 }, condition: 'paid_not_done', defaultEnabled: true },
   { id: 'd1', name: 'D-1 내일 행사 안내 (오시는 길 · 타임테이블)', trigger: { type: 'relative', anchor: 'eventDate', offsetDays: -1, hour: 10 }, condition: 'paid_not_done', defaultEnabled: true },
-  { id: 'thanks', name: 'D+1 감사 인사 · 잔금 · 사진 안내', trigger: { type: 'relative', anchor: 'eventDate', offsetDays: 1, hour: 10 }, condition: 'paid', defaultEnabled: true },
-  { id: 'photos', name: '행사 사진 공개 알림', trigger: { type: 'event', event: 'photos_released' }, condition: 'always', defaultEnabled: true },
+  { id: 'balance_paid', name: '잔금 결제 확인 · 영수증', trigger: { type: 'event', event: 'balance_paid' }, condition: 'always', defaultEnabled: true },
+  { id: 'thanks', name: 'D+1 감사 인사 · 사진 일정 안내', trigger: { type: 'relative', anchor: 'eventDate', offsetDays: 1, hour: 10 }, condition: 'paid', defaultEnabled: true },
+  { id: 'photos', name: '행사 사진·영상 공개 알림', trigger: { type: 'event', event: 'photos_released' }, condition: 'always', defaultEnabled: true },
+  { id: 'revision_done', name: '사진·영상 수정 요청 반영 알림', trigger: { type: 'event', event: 'revision_replied' }, condition: 'always', defaultEnabled: true },
   { id: 'review', name: '후기 요청 (사진 공개 +5일)', trigger: { type: 'relative', anchor: 'photosReleasedAt', offsetDays: 5, hour: 11 }, condition: 'photos', defaultEnabled: true },
 ];
 
@@ -102,10 +105,10 @@ export function renderEmail(ruleId: string, b: Booking, baseUrl: string, today =
         title: '맞춤 견적서가 도착했어요',
         paragraphs: [
           `${name}님이 작성해 주신 필요사항을 바탕으로 견적서를 준비했어요.`,
-          '이대로 진행하시려면 예약금을 결제해 주시고, 바꾸고 싶은 부분이 있다면 페이지에서 조정 요청을 남겨 주세요.',
+          '이대로 진행하시려면 아래 계좌로 예약금을 입금하고 페이지에서 ‘입금했어요’를 눌러 주세요. 바꾸고 싶은 부분이 있다면 조정 요청을 남겨 주세요.',
         ],
         facts: totals
-          ? [...facts, { label: '견적 금액', value: money(totals.total) }, { label: '예약금', value: money(totals.deposit) }, { label: '유효기간', value: formatDate(b.quote!.validUntil) }]
+          ? [...facts, { label: '견적 금액', value: money(totals.total) }, { label: '예약금', value: money(totals.deposit) }, { label: '입금 계좌', value: `${VENUE.bank.name} ${VENUE.bank.account} (${VENUE.bank.holder})` }, { label: '유효기간', value: formatDate(b.quote!.validUntil) }]
           : facts,
         cta: { label: '견적서 확인하기', url },
       };
@@ -127,14 +130,32 @@ export function renderEmail(ruleId: string, b: Booking, baseUrl: string, today =
         facts,
         cta,
       };
+    case 'transfer_notified':
+      return {
+        subject: '[엔젤스데이] 입금 알림을 받았어요 · 확인 후 예약이 확정됩니다',
+        preheader: b.transferNotice ? `입금자명 ${b.transferNotice.depositor} · ${money(b.transferNotice.amount)}` : '입금 내역을 확인하고 있어요.',
+        title: '입금을 확인하고 있어요',
+        paragraphs: [`${name}님, 예약금 입금 알림을 받았어요.`, '담당자가 입금 내역을 확인하면 바로 예약 확정 안내와 영수증을 보내드릴게요. 보통 영업시간 안에 1시간 이내로 확인해요.'],
+        facts: [...facts, ...(b.transferNotice ? [{ label: '입금자명', value: b.transferNotice.depositor }, { label: '입금 금액', value: money(b.transferNotice.amount) }] : [])],
+        cta,
+      };
     case 'deposit_paid':
       return {
-        subject: `[엔젤스데이] 예약이 확정되었어요 · ${formatDate(b.date)}`,
-        preheader: `예약금 ${money(paidAmount(b, 'deposit'))} 결제 완료`,
+        subject: `[엔젤스데이] 입금이 확인되어 예약이 확정되었어요 · ${formatDate(b.date)}`,
+        preheader: `예약금 ${money(paidAmount(b, 'deposit'))} 입금 확인 · 영수증 첨부`,
         title: '예약이 확정되었어요',
-        paragraphs: [`${name}님, 예약금 결제가 완료되어 ${formatDate(b.date)} ${b.time} 일정이 확정되었어요.`, '이제 페이지에서 엔젤스데이의 준비 현황과 고객님 체크리스트를 확인하실 수 있어요.'],
-        facts: [...facts, { label: '결제 금액', value: money(paidAmount(b, 'deposit')) }, ...(totals ? [{ label: '잔금 (행사 당일)', value: money(totals.total - paidAmount(b)) }] : [])],
-        cta: { label: '준비 사항 확인하기', url },
+        paragraphs: [`${name}님, 예약금 입금이 확인되어 ${formatDate(b.date)} ${b.time} 일정이 확정되었어요.`, '페이지에서 영수증을 내려받으시고, 다음 단계에서 엔젤스데이의 준비 현황과 고객님 체크리스트를 함께 확인해 주세요.'],
+        facts: [...facts, { label: '입금 확인 금액', value: money(paidAmount(b, 'deposit')) }, ...(totals ? [{ label: '잔금 (행사 당일 현장 결제)', value: money(totals.total - paidAmount(b)) }] : [])],
+        cta: { label: '영수증 받고 준비 시작하기', url },
+      };
+    case 'balance_paid':
+      return {
+        subject: '[엔젤스데이] 잔금 결제가 확인되었어요',
+        preheader: `잔금 ${money(paidAmount(b, 'balance'))} 결제 완료 · 영수증 첨부`,
+        title: '잔금 결제가 확인되었어요',
+        paragraphs: [`${name}님, 행사장에서 결제하신 잔금이 확인되었어요.`, '페이지에서 영수증을 내려받으실 수 있어요. 사진과 영상은 보정이 끝나는 대로 원본과 보정본을 함께 올려드릴게요.'],
+        facts: [...facts, { label: '잔금 결제', value: money(paidAmount(b, 'balance')) }, ...(totals ? [{ label: '총 결제 금액', value: money(paidAmount(b)) }] : [])],
+        cta: { label: '영수증 내려받기', url },
       };
     case 'd60':
     case 'd30':
@@ -171,21 +192,32 @@ export function renderEmail(ruleId: string, b: Booking, baseUrl: string, today =
     case 'thanks':
       return {
         subject: '[엔젤스데이] 함께해 주셔서 감사합니다',
-        preheader: '잔금 결제가 완료되면 행사 사진을 보내드려요.',
+        preheader: '사진과 영상은 보정 후 페이지에 올려드려요.',
         title: '소중한 날을 함께해 주셔서 감사합니다',
-        paragraphs: [`${name}님, 어제의 행사는 즐거우셨나요?`, '잔금 결제가 확인되면 보정한 행사 사진을 페이지에서 보실 수 있어요.'],
+        paragraphs: [`${name}님, 어제의 행사는 즐거우셨나요?`, '행사 사진과 영상은 보정을 마치는 대로 원본과 보정본을 함께 페이지에 올려드릴게요. 보통 2~3주가 걸려요.'],
         facts,
         cta,
       };
     case 'photos':
       return {
-        subject: '[엔젤스데이] 행사 사진이 도착했어요',
-        preheader: '소중한 순간을 다시 만나보세요.',
-        title: '행사 사진이 도착했어요',
-        paragraphs: [`${name}님, 기다리시던 행사 사진을 올려드렸어요.`, '페이지에서 사진을 보고 원본 앨범을 내려받으실 수 있어요.'],
+        subject: '[엔젤스데이] 행사 사진과 영상이 도착했어요',
+        preheader: '보정본 · 원본 · 하이라이트 영상을 확인해 보세요.',
+        title: '행사 사진과 영상이 도착했어요',
+        paragraphs: [`${name}님, 기다리시던 행사 사진과 영상을 올려드렸어요.`, '페이지에서 보정본과 원본을 비교해 보시고, 고치고 싶은 사진은 골라서 수정을 요청해 주세요. 원하는 파일은 바로 내려받으실 수 있어요.'],
         facts,
-        cta: { label: '사진 보러 가기', url },
+        cta: { label: '사진·영상 보러 가기', url },
       };
+    case 'revision_done': {
+      const last = [...(b.revisionRequests ?? [])].reverse().find((r) => r.reply);
+      return {
+        subject: '[엔젤스데이] 요청하신 수정을 반영했어요',
+        preheader: last?.reply ?? '수정된 사진을 확인해 주세요.',
+        title: '수정 요청을 반영했어요',
+        paragraphs: [`${name}님이 남겨주신 수정 요청을 반영했어요.`, last?.reply ? `담당자 답변: ${last.reply}` : '수정된 사진은 페이지에서 바로 확인하실 수 있어요.'],
+        facts,
+        cta: { label: '수정된 사진 보기', url },
+      };
+    }
     case 'review':
       return {
         subject: '[엔젤스데이] 후기를 들려주세요',
@@ -260,8 +292,11 @@ export function planEmails(b: Booking, enabled: Record<string, boolean>, now: Da
         created: true,
         quote_sent: !!b.quote?.sentAt,
         adjust_replied: b.adjustRequests.some((r) => !!r.reply),
+        transfer_notified: !!b.transferNotice,
         deposit_paid: !!paidAt,
+        balance_paid: b.payments.some((p) => p.kind === 'balance'),
         photos_released: !!b.photosReleasedAt,
+        revision_replied: (b.revisionRequests ?? []).some((r) => !!r.reply),
       };
       return happened[rule.trigger.event] ? { rule, status: 'due', scheduledFor: nowIso } : { rule, status: 'waiting', reason: '해당 단계 도달 시 즉시 발송' };
     }
@@ -334,8 +369,11 @@ export function backfillEmails(b: Booking, baseUrl: string, now: Date = new Date
     created: b.createdAt,
     quote_sent: b.quote?.sentAt,
     adjust_replied: b.adjustRequests.find((r) => r.repliedAt)?.repliedAt,
+    transfer_notified: b.transferNotice?.at,
     deposit_paid: b.payments.find((p) => p.kind === 'deposit')?.paidAt,
+    balance_paid: b.payments.find((p) => p.kind === 'balance')?.paidAt,
     photos_released: b.photosReleasedAt,
+    revision_replied: (b.revisionRequests ?? []).find((r) => r.repliedAt)?.repliedAt,
   };
   let out = b;
   for (const p of planEmails(b, enabled, now)) {

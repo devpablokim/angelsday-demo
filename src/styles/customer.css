@@ -199,3 +199,17 @@
 .req-footer { margin-top: 28px; padding-top: 18px; border-top: 1px solid var(--color-hairline); display: flex; flex-direction: column; gap: 12px; }
 .req-footer__buttons { display: flex; gap: 8px; }
 .req-footer__buttons .btn--lg { white-space: normal; line-height: 1.25; }
+
+/* 예약금 무통장입금 */
+.bank-card__row { display: flex; align-items: center; gap: 12px; }
+.bank-card__row > svg { color: var(--color-gold-deep); flex: none; }
+
+/* STEP 6 사진·영상 */
+.media-item { border-radius: var(--radius-md); overflow: hidden; outline: 2px solid transparent; outline-offset: -2px; transition: outline-color var(--duration-fast); }
+.media-item.is-selected { outline-color: var(--color-gold); }
+.media-item__open { display: block; width: 100%; }
+.media-item__check { position: absolute; top: 8px; right: 8px; width: 26px; height: 26px; border-radius: 50%; display: grid; place-items: center; background: rgba(255, 255, 255, 0.9); border: 1.5px solid rgba(20, 18, 16, 0.25); color: #fff; }
+.media-item.is-selected .media-item__check { background: var(--color-gold); border-color: var(--color-gold); }
+.media-item__play { position: absolute; inset: 0; margin: auto; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; background: rgba(20, 18, 16, 0.55); color: #fff; pointer-events: none; }
+.media-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border: 1px solid var(--color-hairline); border-radius: var(--radius-lg); background: var(--color-canvas-soft); }
+.media-video { width: 100%; max-height: 70vh; border-radius: var(--radius-md); background: #000; }

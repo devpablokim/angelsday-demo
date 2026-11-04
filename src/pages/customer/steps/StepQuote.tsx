@@ -124,17 +124,30 @@ export function StepQuote({ booking: b, onEditRequirements }: { booking: Booking
 
       <QuoteDocument booking={b} quote={q} />
 
-      {!paid && (
+      {!paid && b.transferNotice && (
+        <div className="callout">
+          <span className="callout__icon">
+            <Icon name="clock" size={16} />
+          </span>
+          <div>
+            <div className="title-sm">입금을 확인하고 있어요</div>
+            <p className="body-sm text-muted">
+              {formatDateTime(b.transferNotice.at)} · 입금자명 {b.transferNotice.depositor} · {won(b.transferNotice.amount)} — 확인되면 예약 확정 안내와 영수증을 메일로 보내드려요.
+            </p>
+          </div>
+        </div>
+      )}
+      {!paid && !b.transferNotice && (
         <div className="quote-actions">
           <p className="caption">
-            견적 유효기간 {formatDate(q.validUntil)}까지{expired ? ' · 유효기간이 지났어요. 결제 전 금액을 다시 확인해 드릴게요.' : ''} · 예약금 결제 시 날짜와 홀이 확정돼요.
+            견적 유효기간 {formatDate(q.validUntil)}까지{expired ? ' · 유효기간이 지났어요. 입금 전 금액을 다시 확인해 드릴게요.' : ''} · 예약금 입금이 확인되면 날짜와 홀이 확정돼요.
           </p>
           <div className="quote-actions__buttons">
             <button className="btn btn--secondary btn--lg" onClick={() => setAdjustOpen(true)}>
               조정 요청
             </button>
             <Link to={`/my/${b.id}/pay`} className="btn btn--primary btn--lg grow" aria-disabled={openAdjust.length > 0}>
-              <span className="hide-mobile">이대로 진행 · </span>예약금 {won(t.deposit)} 결제
+              <span className="hide-mobile">이대로 진행 · </span>예약금 {won(t.deposit)} 입금하기
             </Link>
           </div>
         </div>

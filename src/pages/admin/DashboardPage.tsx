@@ -2,7 +2,7 @@ import { addDays, ddayLabel, formatDate, formatDateShort, won, wonShort } from '
 import { dueEmails } from '@shared/emailRules';
 import { eventConfig, honoreeLabel } from '@shared/eventTypes';
 import { calcQuote, expectedRevenue, paidAmount } from '@shared/quote';
-import { computeStep, depositPaid, STEPS } from '@shared/steps';
+import { computeStep, daysInStep, depositPaid, STEPS } from '@shared/steps';
 import type { Booking } from '@shared/types';
 import { hallName } from '@shared/venue';
 import { useMemo, type ReactNode } from 'react';
@@ -82,7 +82,16 @@ export function DashboardPage() {
     const photosWaiting = active.filter((b) => b.date < today && depositPaid(b) && !b.photosReleasedAt);
     const emailDue = active.map((b) => ({ b, n: dueEmails(b, enabled).length })).filter((x) => x.n > 0);
     const upcoming = active.filter((b) => b.date >= today).sort((a, z) => a.date.localeCompare(z.date) || a.time.localeCompare(z.time));
-    return { active, inProgress: withStep.filter((x) => x.step < 6).length, expected, fromQuote, openCount: open.length, confirmed, collected, monthEvents, pipeline, maxRev, quoteWaiting, adjustOpen, soon, photosWaiting, emailDue, upcoming };
+    const transferPending = active.filter((b) => b.transferNotice && !depositPaid(b));
+    const revisionOpen = active.filter((b) => (b.revisionRequests ?? []).some((r) => r.status === 'open'));
+    const board = STEPS.map((st) => ({
+      step: st,
+      list: withStep
+        .filter((x) => x.step === st.no)
+        .map((x) => ({ b: x.b, days: daysInStep(x.b, today) }))
+        .sort((a, z) => z.days - a.days),
+    }));
+    return { transferPending, revisionOpen, board, active, inProgress: withStep.filter((x) => x.step < 6).length, expected, fromQuote, openCount: open.length, confirmed, collected, monthEvents, pipeline, maxRev, quoteWaiting, adjustOpen, soon, photosWaiting, emailDue, upcoming };
   }, [bookings, catalog, enabled, today]);
 
   if (!data) return <PageLoading />;
@@ -138,10 +147,12 @@ export function DashboardPage() {
             <div className="title-md">오늘 할 일</div>
           </div>
           <div className="todo-grid">
+            <TodoGroup icon="bank" title="입금 확인 대기" items={data.transferPending} empty="확인할 입금이 없어요." render={(b) => `입금자명 ${b.transferNotice?.depositor ?? ''} · ${(b.transferNotice?.amount ?? 0).toLocaleString('ko-KR')}원`} />
             <TodoGroup icon="receipt" title="견적 작성 대기" items={data.quoteWaiting} empty="대기 중인 견적이 없어요." render={(b) => `${formatDateShort(b.date)}`} />
             <TodoGroup icon="chat" title="조정 요청 미답변" items={data.adjustOpen} empty="모든 요청에 답변했어요." render={(b) => `“${b.adjustRequests.find((r) => r.status === 'open')?.message ?? ''}”`} />
             <TodoGroup icon="calendar" title="7일 이내 행사" items={data.soon} empty="일주일 안에 예정된 행사가 없어요." render={(b) => `${ddayLabel(b.date, today)} · ${b.time}`} />
             <TodoGroup icon="camera" title="사진 업로드 · 공개 대기" items={data.photosWaiting} empty="공개 대기 중인 사진이 없어요." render={(b) => formatDateShort(b.date)} />
+            <TodoGroup icon="edit" title="사진·영상 수정 요청" items={data.revisionOpen} empty="남은 수정 요청이 없어요." render={(b) => `“${(b.revisionRequests ?? []).find((r) => r.status === 'open')?.message ?? ''}”`} />
           </div>
           <Link to="/admin/emails" className={`email-due ${data.emailDue.length ? 'is-on' : ''}`}>
             <Icon name="mail" size={18} />
@@ -153,6 +164,8 @@ export function DashboardPage() {
           </Link>
         </section>
       </div>
+
+      <StepBoard board={data.board} />
 
       <section className="card mt-24">
         <div className="card__head">
@@ -193,5 +206,47 @@ export function DashboardPage() {
         )}
       </section>
     </div>
+  );
+}
+
+/** 단계마다 이 날수를 넘기면 ‘멈춘 고객’으로 표시합니다 (준비 단계와 사진 단계는 원래 길어서 제외) */
+const STALE_AFTER: Record<number, number> = { 1: 2, 2: 3, 3: 2, 5: 1 };
+
+function StepBoard({ board }: { board: { step: (typeof STEPS)[number]; list: { b: Booking; days: number }[] }[] }) {
+  const stale = board.reduce((n, col) => n + col.list.filter((x) => STALE_AFTER[col.step.no] !== undefined && x.days > STALE_AFTER[col.step.no]).length, 0);
+  return (
+    <section className="card mt-24">
+      <div className="card__head">
+        <div>
+          <div className="title-md">고객이 머무는 단계</div>
+          <p className="caption">모든 고객이 지금 어느 단계에 며칠째 있는지 보여요. 오래 멈춘 고객만 챙기면 됩니다{stale ? ` · 지금 ${stale}명` : ''}.</p>
+        </div>
+      </div>
+      <div className="step-board">
+        {board.map((col) => (
+          <div key={col.step.no} className="step-board__col">
+            <div className="step-board__head">
+              <span className="pipeline__no">{col.step.no}</span>
+              <span className="title-sm grow">{col.step.short}</span>
+              <span className="caption">{col.list.length}명</span>
+            </div>
+            <ul className="step-board__list">
+              {col.list.map(({ b, days }) => {
+                const late = STALE_AFTER[col.step.no] !== undefined && days > STALE_AFTER[col.step.no];
+                return (
+                  <li key={b.id}>
+                    <Link to={`/admin/bookings/${b.id}`} className={`step-board__item ${late ? 'is-late' : ''}`}>
+                      <span className="step-board__name">{honoreeLabel(b.eventType, b.honorees)}</span>
+                      <span className="step-board__days">{days === 0 ? '오늘' : `${days}일째`}</span>
+                    </Link>
+                  </li>
+                );
+              })}
+              {!col.list.length && <li className="caption step-board__empty">없음</li>}
+            </ul>
+          </div>
+        ))}
+      </div>
+    </section>
   );
 }

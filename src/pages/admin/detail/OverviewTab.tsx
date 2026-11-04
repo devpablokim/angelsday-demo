@@ -14,7 +14,8 @@ import { useSaveBooking } from '../adminUtils';
 const SUB_LABEL: Record<SubState, string> = {
   req_draft: '필요사항 작성 중',
   quote_waiting: '견적 작성 대기 (관리자 차례)',
-  quote_ready: '견적 발송됨 · 고객 결제 대기',
+  quote_ready: '견적 발송됨 · 고객 입금 대기',
+  transfer_pending: '입금 알림 · 입금 확인 필요 (관리자 차례)',
   adjusting: '조정 요청 검토 필요',
   paid: '결제 완료 · 준비 시작 전',
   preparing: '준비 진행 중',

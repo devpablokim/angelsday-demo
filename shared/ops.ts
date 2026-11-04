@@ -16,6 +16,7 @@ import type {
   PrepTask,
   Quote,
   Requirements,
+  RevisionRequest,
   TaskStatus,
 } from './types';
 import { hallName } from './venue';
@@ -144,7 +145,24 @@ export function addPayment(b: Booking, kind: Payment['kind'], amount: number, me
 }
 
 export function methodLabel(m: PaymentMethod): string {
-  return { card: '신용·체크카드', transfer: '계좌이체', kakaopay: '카카오페이', onsite: '현장 결제' }[m];
+  return { card: '신용·체크카드', transfer: '무통장입금', kakaopay: '카카오페이', onsite: '현장 결제' }[m];
+}
+
+/** 고객이 예약금을 입금하고 ‘입금했어요’를 누릅니다. 관리자가 입금을 확인하면 addPayment 로 예약이 확정돼요. */
+export function notifyTransfer(b: Booking, depositor: string, amount: number): Booking {
+  const transferNotice = { depositor: depositor.trim(), amount, at: nowIso() };
+  return log({ ...b, transferNotice }, 'customer', 'payment', `예약금 ${amount.toLocaleString('ko-KR')}원 입금 알림 (입금자명 ${transferNotice.depositor}) — 입금 확인 대기`);
+}
+
+/** 고객이 사진·영상 수정을 요청합니다 */
+export function requestRevision(b: Booking, mediaIds: string[], message: string): Booking {
+  const r: RevisionRequest = { id: uid('rv'), at: nowIso(), mediaIds, message: message.trim(), status: 'open' };
+  return log({ ...b, revisionRequests: [...(b.revisionRequests ?? []), r] }, 'customer', 'revision', `사진·영상 수정 요청${mediaIds.length ? ` (${mediaIds.length}건)` : ''}: ${r.message}`);
+}
+
+export function replyRevision(b: Booking, id: string, reply: string): Booking {
+  const revisionRequests = (b.revisionRequests ?? []).map((r): RevisionRequest => (r.id === id ? { ...r, reply: reply.trim(), repliedAt: nowIso(), status: 'done' } : r));
+  return log({ ...b, revisionRequests }, 'admin', 'revision', `수정 요청 반영: ${reply.trim()}`);
 }
 
 export function startPrep(b: Booking, actor: Actor = 'customer'): Booking {

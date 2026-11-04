@@ -2,7 +2,7 @@ import { formatDateTime } from '@shared/dates';
 import { uid } from '@shared/ids';
 import * as ops from '@shared/ops';
 import { balancePaid } from '@shared/steps';
-import type { Booking, Photo } from '@shared/types';
+import type { Booking, Photo, RevisionRequest } from '@shared/types';
 import { useState, type ChangeEvent } from 'react';
 import { Icon } from '../../../components/Icon';
 import { Empty, Img, Sheet, useToast } from '../../../components/ui';
@@ -14,6 +14,17 @@ export function PhotosTab({ booking: b }: { booking: Booking }) {
   const save = useSaveBooking();
   const toast = useToast();
   const [url, setUrl] = useState('');
+  const [videoUrl, setVideoUrl] = useState('');
+  const [replies, setReplies] = useState<Record<string, string>>({});
+  const openRequests: RevisionRequest[] = (b.revisionRequests ?? []).filter((r) => r.status === 'open');
+  const versionOf = (p: Photo) => (p.kind === 'video' ? 'video' : p.version === 'original' ? 'original' : 'edited');
+  const setVersion = (p: Photo, v: string) =>
+    setPhotos(b.photos.map((x) => (x.id === p.id ? (v === 'video' ? { ...x, kind: 'video' as const, version: undefined } : { ...x, kind: 'photo' as const, version: v as Photo['version'] }) : x)));
+  async function reply(r: RevisionRequest) {
+    const text = (replies[r.id] ?? '').trim();
+    if (!text) return;
+    if (await save(ops.replyRevision(b, r.id, text), '수정 요청을 반영 완료로 바꾸고 고객에게 알렸어요.')) setReplies((m) => ({ ...m, [r.id]: '' }));
+  }
   const [album, setAlbum] = useState(b.photoAlbumUrl ?? '');
   const [uploading, setUploading] = useState(0);
   const [confirmOpen, setConfirmOpen] = useState(false);
@@ -72,9 +83,35 @@ export function PhotosTab({ booking: b }: { booking: Booking }) {
         </div>
       </section>
 
+      {openRequests.length > 0 && (
+        <section className="card card--gold">
+          <div className="title-md">고객 수정 요청 {openRequests.length}건</div>
+          <ul className="list mt-12">
+            {openRequests.map((r) => (
+              <li key={r.id} className="list-item" style={{ alignItems: 'flex-start' }}>
+                <div className="list-item__body">
+                  <div className="list-item__title">{r.message}</div>
+                  <div className="list-item__meta">
+                    {formatDateTime(r.at)}
+                    {r.mediaIds.length ? ` · ${r.mediaIds.map((id) => b.photos.find((p) => p.id === id)?.caption || '항목').join(', ')}` : ' · 전체'}
+                  </div>
+                  <div className="row gap-8 mt-8">
+                    <input className="input input--sm grow" value={replies[r.id] ?? ''} onChange={(e) => setReplies((m) => ({ ...m, [r.id]: e.target.value }))} placeholder="예) 요청하신 3장 피부 톤 보정을 반영해 다시 올렸어요" aria-label="답변" />
+                    <button className="btn btn--primary btn--sm" disabled={!(replies[r.id] ?? '').trim()} onClick={() => void reply(r)}>
+                      반영 완료
+                    </button>
+                  </div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
       <section className="card">
         <div className="card__head">
-          <div className="title-md">행사 사진 {b.photos.length}장</div>
+          <div className="title-md">
+            사진·영상 {b.photos.length}개 <span className="caption">보정본 {b.photos.filter((p) => versionOf(p) === 'edited').length} · 원본 {b.photos.filter((p) => versionOf(p) === 'original').length} · 영상 {b.photos.filter((p) => versionOf(p) === 'video').length}</span>
+          </div>
           <label className="btn btn--primary btn--sm">
             {uploading ? <span className="spinner" /> : <Icon name="image" size={16} />}
             {uploading ? `업로드 중 (${uploading})` : '사진 업로드'}
@@ -93,14 +130,32 @@ export function PhotosTab({ booking: b }: { booking: Booking }) {
             추가
           </button>
         </div>
+        <div className="row gap-8 mb-16">
+          <input className="input input--sm grow" value={videoUrl} onChange={(e) => setVideoUrl(e.target.value)} placeholder="영상 URL로 추가 (mp4)" aria-label="영상 URL" />
+          <button
+            className="btn btn--secondary btn--sm"
+            disabled={!/^(https?:\/\/|\/)/.test(videoUrl.trim())}
+            onClick={async () => {
+              const poster = b.photos.find((p) => p.kind !== 'video')?.url;
+              if (await setPhotos([...b.photos, { id: uid('vd'), url: videoUrl.trim(), kind: 'video', poster, caption: '하이라이트 영상' }], '영상을 추가했어요.')) setVideoUrl('');
+            }}
+          >
+            영상 추가
+          </button>
+        </div>
         {b.photos.length === 0 ? (
           <Empty>아직 사진이 없어요.</Empty>
         ) : (
           <ul className="photo-admin-grid">
             {b.photos.map((p) => (
               <li key={p.id} className="photo-admin">
-                <Img src={p.url} alt={p.caption || '행사 사진'} ratio="4 / 3" />
+                <Img src={p.kind === 'video' ? p.poster ?? '' : p.url} alt={p.caption || '행사 사진'} ratio="4 / 3" />
                 <div className="row gap-4 mt-8">
+                  <select className="input input--sm" value={versionOf(p)} onChange={(e) => void setVersion(p, e.target.value)} aria-label="종류">
+                    <option value="edited">보정본</option>
+                    <option value="original">원본</option>
+                    <option value="video">영상</option>
+                  </select>
                   <input
                     className="input input--sm grow"
                     defaultValue={p.caption ?? ''}

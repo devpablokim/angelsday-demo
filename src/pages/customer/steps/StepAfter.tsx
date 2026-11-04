@@ -3,14 +3,15 @@ import { EVENT_TYPES } from '@shared/eventTypes';
 import * as ops from '@shared/ops';
 import { calcQuote, paidAmount } from '@shared/quote';
 import { balancePaid } from '@shared/steps';
-import type { Booking, Photo } from '@shared/types';
+import type { Booking, Photo, RevisionRequest } from '@shared/types';
 import { hallName, VENUE } from '@shared/venue';
-import { useState } from 'react';
+import { useMemo, useState } from 'react';
 import { openChat } from '../../../components/ChatBot';
 import { Icon } from '../../../components/Icon';
 import { Img, Sheet, TaskStatusChip, useToast } from '../../../components/ui';
 import { useStore } from '../../../data/hooks';
 import { ENV } from '../../../data/store';
+import { ReceiptPdfButton } from '../../../components/ReceiptDocument';
 import { QuotePdfButton } from './StepQuote';
 
 function dueLabel(due: string, today: string) {
@@ -39,7 +40,7 @@ export function StepPaid({ booking: b, isCurrent }: { booking: Booking; isCurren
       <div className="receipt">
         <div className="receipt__head">
           <span className="overline">RECEIPT</span>
-          <span className="badge badge--gold">예약 확정</span>
+          <span className="badge badge--gold">입금 확인 · 예약 확정</span>
         </div>
         <span className="receipt__amount numeral">{won(deposit.amount)}</span>
         <dl className="receipt__rows">
@@ -52,7 +53,7 @@ export function StepPaid({ booking: b, isCurrent }: { booking: Booking; isCurren
             <dd>{ops.methodLabel(deposit.method)}</dd>
           </div>
           <div>
-            <dt>결제 일시</dt>
+            <dt>입금 확인</dt>
             <dd>{formatDateTime(deposit.paidAt)}</dd>
           </div>
           <div>
@@ -62,7 +63,7 @@ export function StepPaid({ booking: b, isCurrent }: { booking: Booking; isCurren
           {t && (
             <div>
               <dt>남은 잔금</dt>
-              <dd>{won(t.total - paidAmount(b))} · 행사 당일 결제</dd>
+              <dd>{won(t.total - paidAmount(b))} · 행사 당일 행사장에서 결제</dd>
             </div>
           )}
         </dl>
@@ -87,9 +88,10 @@ export function StepPaid({ booking: b, isCurrent }: { booking: Booking; isCurren
         </ul>
       </div>
       <div className="row wrap gap-8">
+        <ReceiptPdfButton booking={b} payment={deposit} label="영수증 내려받기" className="btn btn--secondary btn--lg" />
         {isCurrent && (
           <button className="btn btn--primary btn--lg grow" onClick={start} disabled={busy}>
-            준비 사항 확인 시작하기 <Icon name="arrowRight" size={18} />
+            다음 단계 · 준비 사항 확인 <Icon name="arrowRight" size={18} />
           </button>
         )}
         <QuotePdfButton booking={b} label="확정 견적서" />
@@ -230,6 +232,7 @@ export function StepEventDay({ booking: b }: { booking: Booking }) {
   const t = b.quote ? calcQuote(b.quote) : undefined;
   const remaining = t ? t.total - paidAmount(b) : 0;
   const done = balancePaid(b);
+  const balance = b.payments.find((p) => p.kind === 'balance');
   return (
     <div className="stack gap-16">
       {isToday && (
@@ -293,26 +296,73 @@ export function StepEventDay({ booking: b }: { booking: Booking }) {
         <div className="row between wrap gap-8">
           <div>
             <h3 className="title-md">잔금 안내</h3>
-            <p className="body-sm mt-8">{done ? '잔금 결제가 완료되었어요. 감사합니다!' : '잔금은 행사 당일 현장에서 카드 또는 계좌이체로 결제해 주세요. 결제가 확인되면 행사 사진이 공개돼요.'}</p>
+            <p className="body-sm mt-8">{done ? '잔금 결제가 확인되었어요. 영수증을 내려받으실 수 있어요.' : '잔금은 행사 당일 행사장에서 결제해 주세요. 결제가 확인되면 영수증을 드리고, 사진과 영상 보정을 시작해요.'}</p>
           </div>
           <span className="price numeral" style={{ fontSize: 28 }}>
             {done ? '결제 완료' : won(remaining)}
           </span>
         </div>
+        {balance && (
+          <div className="row wrap gap-8 mt-16">
+            <ReceiptPdfButton booking={b} payment={balance} label="잔금 영수증 내려받기" />
+          </div>
+        )}
       </section>
     </div>
   );
 }
 
-/** STEP 6 — 행사 사진 확인 */
+/** STEP 6 — 행사 사진·영상 확인 (보정본 · 원본 · 영상, 수정 요청, 다운로드) */
+type MediaTab = 'edited' | 'original' | 'video';
+const TAB_LABEL: Record<MediaTab, string> = { edited: '보정본', original: '원본', video: '영상' };
+const TAB_HINT: Record<MediaTab, string> = {
+  edited: '보정을 마친 사진이에요. 고치고 싶은 사진을 골라 수정을 요청하거나 내려받으세요.',
+  original: '보정 전 원본이에요. 필요한 사진을 골라 내려받으세요.',
+  video: '행사 하이라이트 영상이에요. 재생하거나 원본 파일을 내려받을 수 있어요.',
+};
+const REVISION_CHIPS = ['피부 톤을 더 자연스럽게 해 주세요', '밝기를 조금 올려 주세요', '뒤쪽 사람을 지워 주세요', '흑백 버전도 받고 싶어요', '영상 배경음악을 바꾸고 싶어요'];
+
+function mediaFileName(m: Photo, i: number) {
+  const ext = (m.url.split('?')[0].match(/\.([a-z0-9]{3,4})$/i)?.[1] ?? (m.kind === 'video' ? 'mp4' : 'jpg')).toLowerCase();
+  const kind = m.kind === 'video' ? '영상' : m.version === 'original' ? '원본' : '보정본';
+  return `${VENUE.name}_${kind}_${String(i + 1).padStart(2, '0')}.${ext}`;
+}
+
+function downloadAll(items: Photo[]) {
+  items.forEach((m, i) =>
+    setTimeout(() => {
+      const a = document.createElement('a');
+      a.href = m.url;
+      a.download = mediaFileName(m, i);
+      document.body.appendChild(a);
+      a.click();
+      a.remove();
+    }, i * 300),
+  );
+}
+
 export function StepPhotos({ booking: b, unlocked }: { booking: Booking; unlocked: boolean }) {
   const store = useStore();
   const toast = useToast();
+  const groups = useMemo(
+    () => ({
+      edited: b.photos.filter((m) => m.kind !== 'video' && m.version !== 'original'),
+      original: b.photos.filter((m) => m.kind !== 'video' && m.version === 'original'),
+      video: b.photos.filter((m) => m.kind === 'video'),
+    }),
+    [b.photos],
+  );
+  const tabs = (Object.keys(groups) as MediaTab[]).filter((t) => groups[t].length > 0);
+  const [tab, setTab] = useState<MediaTab>(tabs[0] ?? 'edited');
+  const [selected, setSelected] = useState<string[]>([]);
   const [view, setView] = useState<Photo | null>(null);
+  const [revOpen, setRevOpen] = useState(false);
+  const [revMsg, setRevMsg] = useState('');
   const [reviewOpen, setReviewOpen] = useState(false);
   const [rating, setRating] = useState(5);
   const [review, setReview] = useState('');
   const reviewed = b.timeline.some((t) => t.type === 'review');
+  const requests: RevisionRequest[] = b.revisionRequests ?? [];
 
   if (!unlocked) {
     return (
@@ -320,12 +370,24 @@ export function StepPhotos({ booking: b, unlocked }: { booking: Booking; unlocke
         <div className="row gap-12">
           <Icon name="lock" />
           <div>
-            <div className="title-sm">잔금 결제 후 사진이 공개돼요</div>
-            <p className="body-sm text-muted mt-8">행사 당일 잔금 결제가 완료되면 보정한 사진과 원본 앨범 링크를 이곳에 올려드려요. 보통 행사 후 2~3주가 걸려요.</p>
+            <div className="title-sm">잔금 결제가 확인되면 사진과 영상이 올라와요</div>
+            <p className="body-sm text-muted mt-8">행사장에서 잔금을 결제하시면 보정본과 원본 사진, 하이라이트 영상을 이곳에 올려드려요. 보통 행사 후 2~3주가 걸리고, 올라오면 메일로 알려드려요.</p>
           </div>
         </div>
       </div>
     );
+  }
+
+  const list = groups[tab];
+  const picked = b.photos.filter((m) => selected.includes(m.id));
+  const toggle = (id: string) => setSelected((s) => (s.includes(id) ? s.filter((x) => x !== id) : [...s, id]));
+
+  async function sendRevision() {
+    await store.saveBooking(ops.requestRevision(b, selected, revMsg));
+    setRevOpen(false);
+    setRevMsg('');
+    setSelected([]);
+    toast('수정 요청을 보냈어요. 반영되면 메일로 알려드릴게요.');
   }
 
   async function submitReview() {
@@ -336,18 +398,93 @@ export function StepPhotos({ booking: b, unlocked }: { booking: Booking; unlocke
 
   return (
     <div className="stack gap-16">
-      <div className="photo-grid">
-        {b.photos.map((p) => (
-          <button key={p.id} className="photo-grid__item" onClick={() => setView(p)}>
-            <Img src={p.url} alt={p.caption ?? '행사 사진'} ratio="1 / 1" />
-            {p.caption && <span className="photo-grid__caption">{p.caption}</span>}
+      <div className="chip-row" role="tablist" aria-label="사진·영상 종류">
+        {tabs.map((t) => (
+          <button key={t} role="tab" className="chip" aria-selected={tab === t} aria-pressed={tab === t} onClick={() => setTab(t)}>
+            {TAB_LABEL[t]} {groups[t].length}
           </button>
         ))}
       </div>
+      <p className="caption">{TAB_HINT[tab]}</p>
+
+      <div className="photo-grid">
+        {list.map((m) => {
+          const on = selected.includes(m.id);
+          return (
+            <div key={m.id} className={`photo-grid__item media-item ${on ? 'is-selected' : ''}`}>
+              <button className="media-item__open" onClick={() => setView(m)} aria-label={`${m.caption ?? TAB_LABEL[tab]} 크게 보기`}>
+                <Img src={m.kind === 'video' ? m.poster ?? m.url : m.url} alt={m.caption ?? '행사 사진'} ratio="1 / 1" />
+                {m.kind === 'video' && (
+                  <span className="media-item__play">
+                    <Icon name="play" size={22} />
+                  </span>
+                )}
+                {m.caption && <span className="photo-grid__caption">{m.caption}</span>}
+              </button>
+              <button className="media-item__check" role="checkbox" aria-checked={on} aria-label={`${m.caption ?? '항목'} 선택`} onClick={() => toggle(m.id)}>
+                {on && <Icon name="check" size={14} strokeWidth={2.4} />}
+              </button>
+            </div>
+          );
+        })}
+      </div>
+
+      <div className="media-actions">
+        {selected.length > 0 ? (
+          <>
+            <span className="title-sm">{selected.length}개 선택</span>
+            <div className="row wrap gap-8">
+              <button className="btn btn--secondary btn--sm" onClick={() => downloadAll(picked)}>
+                <Icon name="download" size={16} /> 선택 내려받기
+              </button>
+              <button className="btn btn--primary btn--sm" onClick={() => setRevOpen(true)}>
+                <Icon name="edit" size={16} /> 수정 요청
+              </button>
+              <button className="btn btn--ghost btn--sm" onClick={() => setSelected([])}>
+                선택 해제
+              </button>
+            </div>
+          </>
+        ) : (
+          <>
+            <span className="caption">사진을 골라 수정을 요청하거나 내려받을 수 있어요.</span>
+            <div className="row wrap gap-8">
+              <button className="btn btn--secondary btn--sm" onClick={() => downloadAll(list)}>
+                <Icon name="download" size={16} /> {TAB_LABEL[tab]} 전체 내려받기
+              </button>
+              <button className="btn btn--secondary btn--sm" onClick={() => setRevOpen(true)}>
+                <Icon name="edit" size={16} /> 수정 요청하기
+              </button>
+            </div>
+          </>
+        )}
+      </div>
+
+      {requests.length > 0 && (
+        <section className="card">
+          <h3 className="title-md">수정 요청 내역</h3>
+          <ul className="list mt-12">
+            {[...requests].reverse().map((r) => (
+              <li key={r.id} className="list-item">
+                <span className={`badge ${r.status === 'done' ? 'badge--gold' : 'badge--warning'}`}>{r.status === 'done' ? '반영 완료' : '검토 중'}</span>
+                <div className="list-item__body">
+                  <div className="list-item__title">{r.message}</div>
+                  <div className="list-item__meta">
+                    {formatDateTime(r.at)}
+                    {r.mediaIds.length ? ` · 사진·영상 ${r.mediaIds.length}개` : ''}
+                  </div>
+                  {r.reply && <p className="body-sm mt-8">답변 · {r.reply}</p>}
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
+      )}
+
       <div className="row wrap gap-8">
         {b.photoAlbumUrl && (
           <a className="btn btn--primary btn--lg grow" href={b.photoAlbumUrl} target="_blank" rel="noreferrer">
-            <Icon name="download" size={18} /> 원본 앨범 내려받기
+            <Icon name="download" size={18} /> 원본 앨범 한 번에 받기
           </a>
         )}
         {!reviewed ? (
@@ -358,9 +495,48 @@ export function StepPhotos({ booking: b, unlocked }: { booking: Booking; unlocke
           <span className="badge badge--gold">후기를 남겨주셨어요 · 감사합니다</span>
         )}
       </div>
-      <Sheet open={!!view} onClose={() => setView(null)} title={view?.caption ?? '행사 사진'} wide>
-        {view && <Img src={view.url} alt={view.caption ?? '행사 사진'} ratio="4 / 3" />}
+
+      <Sheet open={!!view} onClose={() => setView(null)} title={view?.caption ?? (view?.kind === 'video' ? '하이라이트 영상' : '행사 사진')} wide>
+        {view &&
+          (view.kind === 'video' ? (
+            <video className="media-video" src={view.url} poster={view.poster} controls playsInline />
+          ) : (
+            <Img src={view.url} alt={view.caption ?? '행사 사진'} ratio="4 / 3" />
+          ))}
+        {view && (
+          <div className="row wrap gap-8 mt-16">
+            <button className="btn btn--secondary btn--sm" onClick={() => downloadAll([view])}>
+              <Icon name="download" size={16} /> 내려받기
+            </button>
+            <button
+              className="btn btn--primary btn--sm"
+              onClick={() => {
+                setSelected([view.id]);
+                setView(null);
+                setRevOpen(true);
+              }}
+            >
+              <Icon name="edit" size={16} /> 이 {view.kind === 'video' ? '영상' : '사진'} 수정 요청
+            </button>
+          </div>
+        )}
       </Sheet>
+
+      <Sheet open={revOpen} onClose={() => setRevOpen(false)} title={selected.length ? `선택한 ${selected.length}개 수정 요청` : '사진·영상 수정 요청'}>
+        <div className="chip-row">
+          {REVISION_CHIPS.map((c) => (
+            <button key={c} className="chip chip--sm" onClick={() => setRevMsg((m) => (m ? `${m}\n${c}` : c))}>
+              {c}
+            </button>
+          ))}
+        </div>
+        <textarea className="textarea mt-16" value={revMsg} onChange={(e) => setRevMsg(e.target.value)} placeholder="어떤 부분을 어떻게 바꾸고 싶으신지 적어 주세요." />
+        <button className="btn btn--primary btn--block btn--lg mt-16" onClick={() => void sendRevision()} disabled={!revMsg.trim()}>
+          수정 요청 보내기
+        </button>
+        <p className="caption mt-12">반영이 끝나면 메일로 알려드리고, 수정본은 이 페이지에 바로 올라와요.</p>
+      </Sheet>
+
       <Sheet open={reviewOpen} onClose={() => setReviewOpen(false)} title="엔젤스데이와의 하루는 어떠셨나요?">
         <div className="row gap-4" role="radiogroup" aria-label="별점">
           {[1, 2, 3, 4, 5].map((n) => (
@@ -370,7 +546,7 @@ export function StepPhotos({ booking: b, unlocked }: { booking: Booking; unlocke
           ))}
         </div>
         <textarea className="textarea mt-16" value={review} onChange={(e) => setReview(e.target.value)} placeholder="좋았던 점, 아쉬웠던 점을 자유롭게 남겨 주세요." />
-        <button className="btn btn--primary btn--block btn--lg mt-16" onClick={submitReview} disabled={!review.trim()}>
+        <button className="btn btn--primary btn--block btn--lg mt-16" onClick={() => void submitReview()} disabled={!review.trim()}>
           후기 보내기
         </button>
         <p className="caption mt-12">
@@ -381,10 +557,10 @@ export function StepPhotos({ booking: b, unlocked }: { booking: Booking; unlocke
         </p>
       </Sheet>
       <button className="btn btn--ghost" onClick={() => openChat('사진 원본은 언제까지 받을 수 있나요?')}>
-        <Icon name="chat" size={16} /> 사진 관련 문의
+        <Icon name="chat" size={16} /> 사진·영상 관련 문의
       </button>
       <p className="caption">
-        행사일 {formatDate(b.date)} · 사진 공개 {b.photosReleasedAt ? formatDateTime(b.photosReleasedAt) : ''}
+        행사일 {formatDate(b.date)} · 공개 {b.photosReleasedAt ? formatDateTime(b.photosReleasedAt) : ''}
       </p>
     </div>
   );

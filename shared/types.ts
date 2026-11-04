@@ -115,10 +115,33 @@ export interface EmailLog {
   status: 'sent' | 'failed';
 }
 
+/** 고객이 무통장입금 후 남기는 입금 알림 — 관리자가 입금을 확인하면 예약금 결제로 등록합니다 */
+export interface TransferNotice {
+  depositor: string;
+  amount: number;
+  at: ISODateTime;
+}
+
+/** 행사 사진·영상. version 이 없으면 보정본으로 봅니다. */
 export interface Photo {
   id: string;
   url: string;
   caption?: string;
+  kind?: 'photo' | 'video';
+  version?: 'edited' | 'original';
+  /** 영상 미리보기 이미지 */
+  poster?: string;
+}
+
+/** 사진·영상 수정 요청 */
+export interface RevisionRequest {
+  id: string;
+  at: ISODateTime;
+  mediaIds: string[];
+  message: string;
+  status: 'open' | 'done';
+  reply?: string;
+  repliedAt?: ISODateTime;
 }
 
 export interface ScheduleItem {
@@ -148,6 +171,8 @@ export interface Booking {
 
   quote?: Quote;
   adjustRequests: AdjustRequest[];
+  /** 무통장입금 알림 (고객이 ‘입금했어요’를 누른 기록) */
+  transferNotice?: TransferNotice;
   payments: Payment[];
 
   prepStartedAt?: ISODateTime;
@@ -158,6 +183,7 @@ export interface Booking {
   photos: Photo[];
   photoAlbumUrl?: string;
   photosReleasedAt?: ISODateTime;
+  revisionRequests?: RevisionRequest[];
 
   timeline: TimelineEntry[];
   emails: EmailLog[];

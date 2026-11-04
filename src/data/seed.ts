@@ -21,7 +21,8 @@ function when(today: string, dayOffset: number, hour = 10, minute = 0): Date {
   return new Date(kstDateTime(addDays(today, dayOffset), hour, minute));
 }
 
-const GALLERY = ['g-11', 'g-10', 'g-15', 'g-17', 'g-12', 'g-14'].map((n) => img(`gallery/${n}`));
+const GALLERY_SHOTS = ['g-11', 'g-10', 'g-15', 'g-17', 'g-12', 'g-14'];
+const GALLERY = GALLERY_SHOTS.map((n) => img(`gallery/${n}`));
 
 export const DEMO_IDS = {
   wedding: 'demo-wedding-mongryong',
@@ -32,6 +33,7 @@ export const DEMO_IDS = {
   photos: 'demo-wedding-photos',
   today: 'demo-corporate-today',
   dolSoon: 'demo-dol-seojun',
+  transfer: 'demo-wedding-transfer',
 } as const;
 
 /** 데모 고객별 예약 비밀번호 (실제 예약은 문의 접수 시 무작위 8자리로 발급) */
@@ -44,6 +46,7 @@ export const DEMO_CODES: Record<string, string> = {
   'demo-dol-seojun': 'SJUN-2026',
   'demo-corporate-today': 'GPBV-2026',
   'demo-wedding-photos': 'JMJH-2026',
+  'demo-wedding-transfer': 'OJYS-2027',
 };
 
 function make(id: string, input: ops.InquiryInput, createdAt: Date): Booking {
@@ -63,8 +66,11 @@ function quote(b: Booking, t: Date, tweak?: (q: ReturnType<typeof draftQuote>) =
   });
 }
 
-function pay(b: Booking, t: Date, method: 'card' | 'transfer' | 'kakaopay' = 'card'): Booking {
-  return ops.at(t, () => ops.addPayment(b, 'deposit', calcQuote(b.quote!).deposit, method));
+/** 예약금은 무통장입금: 고객이 입금 알림을 남기고, 관리자가 입금을 확인해 예약을 확정합니다 */
+function pay(b: Booking, t: Date): Booking {
+  const amount = calcQuote(b.quote!).deposit;
+  const noticed = ops.at(new Date(t.getTime() - 45 * 60000), () => ops.notifyTransfer(b, b.customer.name, amount));
+  return ops.at(t, () => ops.addPayment(noticed, 'deposit', amount, 'transfer', 'admin', `입금자명 ${b.customer.name}`));
 }
 
 function progress(b: Booking, doneCount: number, doingCount: number, t: Date, notes: Record<number, string> = {}): Booking {
@@ -115,7 +121,7 @@ export function buildSeed(now: Date = new Date()): { bookings: Booking[]; calend
       q.discountLabel = '얼리버드 (예식 3개월 전 확정)';
       q.memo = '프리미엄 꽃장식과 애프터파티를 반영하고 얼리버드 7%를 적용했어요. 신부 할머님 동선은 휠체어 전용 통로로 준비하겠습니다.';
     });
-    b = pay(b, when(T, -34, 20, 15), 'card');
+    b = pay(b, when(T, -34, 20, 15));
     b = ops.at(when(T, -34, 20, 20), () => ops.startPrep(b));
     b = progress(b, 2, 2, when(T, -10, 15), { 1: '하객 동선과 휠체어 통로 반영한 배치도를 공유드렸어요.', 2: '작약·수국 중심 시안 2종 준비 중', 3: '시식 가능 일정: 다음 주 화·목 오후' });
     b = checkFirst(b, 2, when(T, -6, 21));
@@ -162,7 +168,7 @@ export function buildSeed(now: Date = new Date()): { bookings: Booking[]; calend
     b = quote(b, when(T, -10, 11, 0), (q) => {
       q.memo = '평일 할인 10%를 적용했어요. 세금계산서는 행사 후 발행됩니다.';
     });
-    b = pay(b, when(T, -1, 16, 40), 'transfer');
+    b = pay(b, when(T, -1, 16, 40));
     list.push(b);
   }
 
@@ -199,14 +205,37 @@ export function buildSeed(now: Date = new Date()): { bookings: Booking[]; calend
       q.discountRate = 7;
       q.discountLabel = '얼리버드 (4개월 전 확정)';
     });
-    b = pay(b, new Date(kstDateTime(addDays(date, -115), 20)), 'card');
+    b = pay(b, new Date(kstDateTime(addDays(date, -115), 20)));
     b = ops.at(new Date(kstDateTime(addDays(date, -115), 20, 10)), () => ops.startPrep(b));
     b = progress(b, 99, 0, new Date(kstDateTime(addDays(date, -1), 18)));
     b = checkFirst(b, 99, new Date(kstDateTime(addDays(date, -2), 21)));
     const balance = calcQuote(b.quote!).balance;
-    b = ops.at(new Date(kstDateTime(date, 16, 30)), () => ops.addPayment(b, 'balance', balance, 'card', 'admin', '행사 당일 현장 결제'));
-    b = { ...b, photos: GALLERY.map((url, i) => ({ id: uid('ph'), url, caption: ['본식 입장', '버진로드', '양가 인사', '피로연', '포토 테이블', '단체 사진'][i] })), photoAlbumUrl: 'https://photos.example.com/angelsday/choi-han' };
+    b = ops.at(new Date(kstDateTime(date, 16, 30)), () => ops.addPayment(b, 'balance', balance, 'onsite', 'admin', '행사 당일 행사장 결제'));
+    const captions = ['본식 입장', '버진로드', '양가 인사', '피로연', '포토 테이블', '단체 사진'];
+    const edited = GALLERY.map((url, i) => ({ id: `ph-edit-${i + 1}`, url, caption: captions[i], kind: 'photo' as const, version: 'edited' as const }));
+    const originals = GALLERY_SHOTS.map((n, i) => ({ id: `ph-orig-${i + 1}`, url: img(`media/orig-${n}`), caption: captions[i], kind: 'photo' as const, version: 'original' as const }));
+    const video = { id: 'vd-highlight', url: `${import.meta.env.BASE_URL}images/media/highlight.mp4`, poster: GALLERY[1], caption: '하이라이트 영상', kind: 'video' as const };
+    b = { ...b, photos: [...edited, ...originals, video], photoAlbumUrl: 'https://photos.example.com/angelsday/choi-han' };
     b = ops.at(when(T, -3, 15), () => ops.releasePhotos(b, true));
+    b = ops.at(when(T, -2, 21, 10), () => ops.requestRevision(b, ['ph-edit-3'], '양가 인사 사진의 피부 톤을 조금 더 자연스럽게 해 주세요.'));
+    b = ops.at(when(T, -1, 11, 30), () => ops.replyRevision(b, b.revisionRequests![0].id, '피부 톤을 자연스럽게 다시 보정해 같은 자리에 올려 두었어요.'));
+    b = ops.at(when(T, 0, 9, 40), () => ops.requestRevision(b, ['vd-highlight'], '하이라이트 영상 배경음악을 조금 더 잔잔한 곡으로 바꾸고 싶어요.'));
+    list.push(b);
+  }
+
+  // 9) STEP 2 — 오지훈 ♥ 윤서아 스몰웨딩 (예약금 입금 알림 · 입금 확인 대기)
+  {
+    const date = nextDow(addDays(T, 152), 6);
+    let b = make(
+      DEMO_IDS.transfer,
+      { eventType: 'wedding', date, time: '12:00', hallId: 'lovely', guests: 90, customer: { name: '윤서아', phone: '010-4567-1234', email: 'seoa@example.com' }, honoreeValues: { groom: '오지훈', bride: '윤서아' } },
+      when(T, -6, 10, 20),
+    );
+    b = submit(b, { hallId: 'lovely', guestsAdult: 90, guestsKids: 6, bridalRoom: true, flowerTier: 'standard', flowerTone: 'blush', menuTier: 'premium', drinks: 'soft', snap: 'basic', mc: true, officiant: 'none', gifts: 'cookie', requests: '본식은 짧게, 식사 시간을 넉넉히 갖고 싶어요.' }, when(T, -5, 22, 5));
+    b = quote(b, when(T, -3, 11, 40), (q) => {
+      q.memo = '스몰웨딩 패키지 기준이에요. 본식 30분, 식사 90분으로 구성했어요.';
+    });
+    b = ops.at(when(T, 0, 9, 15), () => ops.notifyTransfer(b, '오지훈', calcQuote(b.quote!).deposit));
     list.push(b);
   }
 
@@ -220,7 +249,7 @@ export function buildSeed(now: Date = new Date()): { bookings: Booking[]; calend
     );
     b = submit(b, { hallId: 'aloha', guestsAdult: 80, seating: 'banquet', av: ['projector', 'sound', 'stage'], mc: true, performance: 'band', deco: 'photowall', menuTier: 'signature', drinks: 'alcohol', snap: true, taxInvoice: true, bizNo: '234-56-78901' }, when(T, -44, 17));
     b = quote(b, when(T, -43, 10));
-    b = pay(b, when(T, -40, 14), 'transfer');
+    b = pay(b, when(T, -40, 14));
     b = ops.at(when(T, -40, 14, 5), () => ops.startPrep(b));
     b = progress(b, 99, 0, when(T, 0, 9));
     b = checkFirst(b, 99, when(T, -1, 18));
@@ -237,7 +266,7 @@ export function buildSeed(now: Date = new Date()): { bookings: Booking[]; calend
     );
     b = submit(b, { hallId: 'sia', guestsAdult: 30, guestsKids: 6, dolsang: 'hanok', theme: 'green', doljabi: true, mc: false, video: 'play', menuTier: 'standard', drinks: 'soft', snap: 'snap', gifts: 'ricecake' }, when(T, -49, 21));
     b = quote(b, when(T, -48, 11));
-    b = pay(b, when(T, -46, 19), 'kakaopay');
+    b = pay(b, when(T, -46, 19));
     b = ops.at(when(T, -46, 19, 5), () => ops.startPrep(b));
     b = progress(b, 3, 1, when(T, -2, 14), { 3: '돌잡이 소품과 한옥 포토존 소품 준비 중이에요.' });
     b = checkFirst(b, 2, when(T, -3, 22));

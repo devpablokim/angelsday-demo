@@ -61,7 +61,8 @@ service cloud.firestore {
         let after = request.resource.data;
         return after.diff(before).affectedKeys().hasOnly([
             'requirements', 'requirementsSubmittedAt', 'guests', 'hallId', 'location',
-            'adjustRequests', 'checklist', 'timeline', 'prepStartedAt', 'updatedAt'
+            'adjustRequests', 'checklist', 'timeline', 'prepStartedAt', 'updatedAt',
+            'transferNotice', 'revisionRequests'
           ])
           && !('cancelledAt' in before)
           && after.requirements is map && after.requirements.size() <= 80
@@ -71,6 +72,9 @@ service cloud.firestore {
           && appendOnly(before.adjustRequests, after.adjustRequests, 1)
           && newAdjustIsOpen(before.adjustRequests, after.adjustRequests)
           && timelineByCustomer(before.timeline, after.timeline)
+          && validTransferNotice(before, after)
+          && appendOnly(before.get('revisionRequests', []), after.get('revisionRequests', []), 1)
+          && newRevisionIsOpen(before.get('revisionRequests', []), after.get('revisionRequests', []))
           // 준비 시작은 예약금 결제 이후에만 (결제는 서버가 기록)
           && (!('prepStartedAt' in after) || before.payments.size() > 0);
       }
@@ -80,6 +84,25 @@ service cloud.firestore {
       function appendOnly(a, b, max) {
         return b is list && b.size() >= a.size() && b.size() <= a.size() + max
           && (a.size() == 0 || b[0:a.size()] == a);
+      }
+
+      // 무통장입금 알림: 예약금이 등록되기 전에만, 입금자명·금액·시각만 남길 수 있습니다 (확정은 관리자)
+      function validTransferNotice(before, after) {
+        return !('transferNotice' in after)
+          || (('transferNotice' in before) && after.transferNotice == before.transferNotice)
+          || (before.payments.size() == 0
+            && after.transferNotice.keys().hasOnly(['depositor', 'amount', 'at'])
+            && str(after.transferNotice.depositor, 40)
+            && after.transferNotice.amount is int && after.transferNotice.amount > 0
+            && after.transferNotice.at is string);
+      }
+
+      // 사진·영상 수정 요청: 새 요청은 열린 상태로만 추가 (답변·완료는 관리자)
+      function newRevisionIsOpen(a, b) {
+        return b.size() == a.size()
+          || (b[b.size() - 1].status == 'open' && !('reply' in b[b.size() - 1])
+            && str(b[b.size() - 1].message, 1000)
+            && b[b.size() - 1].mediaIds is list && b[b.size() - 1].mediaIds.size() <= 60);
       }
 
       function newAdjustIsOpen(a, b) {
