@@ -203,6 +203,7 @@
 /* 예약금 무통장입금 */
 .bank-card__row { display: flex; align-items: center; gap: 12px; }
 .bank-card__row > svg { color: var(--color-gold-deep); flex: none; }
+.bank-card__no { white-space: nowrap; font-variant-numeric: tabular-nums; letter-spacing: 0.01em; }
 
 /* STEP 6 사진·영상 */
 .media-item { border-radius: var(--radius-md); overflow: hidden; outline: 2px solid transparent; outline-offset: -2px; transition: outline-color var(--duration-fast); }

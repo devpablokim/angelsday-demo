@@ -149,7 +149,8 @@ export function PaymentPage() {
               <div className="bank-card__row mt-8">
                 <Icon name="bank" size={22} />
                 <div className="grow">
-                  <div className="title-md">{account}</div>
+                  <div className="caption">{VENUE.bank.name}</div>
+                  <div className="title-md bank-card__no">{VENUE.bank.account}</div>
                   <div className="caption">예금주 {VENUE.bank.holder}</div>
                 </div>
                 <button className="btn btn--secondary btn--sm" onClick={() => void copyAccount()}>

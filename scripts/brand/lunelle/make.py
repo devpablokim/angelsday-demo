@@ -108,6 +108,12 @@ REPLACEMENTS = [
     ['https://www.엔젤스데이.com', 'https://hobbytan-venue.web.app/demo/'],
     ['https://www.angelsdaycatering.com/', 'https://hobbytan-venue.web.app/demo/catering'],
     ['엔젤스데이 파티하우스', '루넬 파티하우스'],
+    # 받침이 생기니 조사도 함께 바꿉니다 (엔젤스데이가 → 루넬이)
+    ['엔젤스데이가', '루넬이'],
+    ['엔젤스데이와', '루넬과'],
+    ['엔젤스데이는', '루넬은'],
+    ['엔젤스데이를', '루넬을'],
+    ['엔젤스데이예요', '루넬이에요'],
     ['엔젤스데이', '루넬'],
     ['엔젤스', '루넬'],
     ['ANGELSDAY PARTY HOUSE', 'LUNELLE PARTY HOUSE'],

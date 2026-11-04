@@ -1,4 +1,4 @@
-import type { EmailRule, PlanStatus } from '@shared/emailRules';
+import type { EmailEvent, EmailRule, PlanStatus } from '@shared/emailRules';
 import { todayKST } from '@shared/dates';
 import { honoreeLabel } from '@shared/eventTypes';
 import { depositPaid } from '@shared/steps';
@@ -67,12 +67,16 @@ export function digitsOnly(s: string): number {
 }
 
 
-const EVENT_TEXT: Record<string, string> = {
+// 새 이벤트가 생기면 여기서 타입 오류가 나도록 EmailEvent 로 묶어 둡니다
+const EVENT_TEXT: Record<EmailEvent, string> = {
   created: '문의 접수 직후',
   quote_sent: '견적서 발송 직후',
   adjust_replied: '조정 요청 답변 직후',
-  deposit_paid: '예약금 결제 직후',
+  transfer_notified: '입금 알림 직후',
+  deposit_paid: '예약금 입금 확인 직후',
+  balance_paid: '잔금 결제 직후',
   photos_released: '사진 공개 직후',
+  revision_replied: '수정 요청 답변 직후',
 };
 const ANCHOR_TEXT: Record<string, string> = { eventDate: '행사일', createdAt: '문의일', quoteSentAt: '견적 발송일', photosReleasedAt: '사진 공개일' };
 const COND_TEXT: Record<string, string> = {
@@ -85,7 +89,7 @@ const COND_TEXT: Record<string, string> = {
 };
 
 export function triggerText(r: EmailRule): string {
-  if (r.trigger.type === 'event') return EVENT_TEXT[r.trigger.event] ?? r.trigger.event;
+  if (r.trigger.type === 'event') return EVENT_TEXT[r.trigger.event];
   const n = r.trigger.offsetDays;
   const anchor = ANCHOR_TEXT[r.trigger.anchor] ?? r.trigger.anchor;
   const rel = r.trigger.anchor === 'eventDate' ? (n < 0 ? `D${n}` : `D+${n}`) : `${anchor} +${n}일`;

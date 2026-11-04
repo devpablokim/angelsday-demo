@@ -1,5 +1,5 @@
-import { useEffect, useState, type FormEvent } from 'react';
-import { Link, useLocation, useNavigate } from 'react-router';
+import { useEffect, useRef, useState, type FormEvent } from 'react';
+import { Link, useLocation, useNavigate, useSearchParams } from 'react-router';
 import { Logo } from '../../brand/Logo';
 import { useAdmin, useStore } from '../../data/hooks';
 import { ENV } from '../../data/store';
@@ -15,23 +15,37 @@ export function LoginPage() {
   const [password, setPassword] = useState('');
   const [error, setError] = useState('');
   const [busy, setBusy] = useState(false);
+  const [params] = useSearchParams();
+  const quickTried = useRef(false);
 
   useEffect(() => {
     if (admin) nav(from.startsWith('/admin') && from !== '/admin/login' ? from : '/admin', { replace: true });
   }, [admin, from, nav]);
 
-  async function onSubmit(e: FormEvent) {
-    e.preventDefault();
+  async function signIn(pw: string) {
     setBusy(true);
     setError('');
     try {
-      await store.adminSignIn(email.trim(), password);
+      await store.adminSignIn(email.trim(), pw);
     } catch (err) {
       setError(errorMessage(err));
     } finally {
       setBusy(false);
     }
   }
+
+  function onSubmit(e: FormEvent) {
+    e.preventDefault();
+    void signIn(password);
+  }
+
+  // 데모 모드 전용: 제안서 QR(…/admin/login?enter=demo)로 들어오면 비밀번호 없이 바로 대시보드로 갑니다.
+  // 데모 비밀번호는 이 화면에 이미 공개돼 있고 데이터도 방문자 브라우저에만 저장되므로, 실제 운영(firebase) 모드에는 영향이 없습니다.
+  useEffect(() => {
+    if (store.mode !== 'demo' || admin || quickTried.current || params.get('enter') !== 'demo') return;
+    quickTried.current = true;
+    void signIn(ENV.adminPasscode);
+  }, [store.mode, admin, params]);
 
   return (
     <div className="admin-login">
@@ -68,6 +82,11 @@ export function LoginPage() {
         <button className="btn btn--primary btn--lg btn--block" type="submit" disabled={busy}>
           {busy ? <span className="spinner" /> : '로그인'}
         </button>
+        {store.mode === 'demo' && (
+          <button className="btn btn--secondary btn--block" type="button" onClick={() => void signIn(ENV.adminPasscode)} disabled={busy}>
+            비밀번호 없이 데모 둘러보기
+          </button>
+        )}
         <Link to="/" className="caption" style={{ textAlign: 'center' }}>
           ← 고객 사이트로 돌아가기
         </Link>
