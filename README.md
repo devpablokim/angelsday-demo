@@ -224,11 +224,13 @@ Functions 는 `mail` 컬렉션에 메일 문서를 쓰고, `deliverMail` 함수�
 1. 보낼 지메일 계정에서 2단계 인증을 켜고 [앱 비밀번호](https://myaccount.google.com/apppasswords)를 만듭니다.
 2. Cloud Shell 에서 Secret Manager 에 등록합니다. (비밀번호는 코드나 저장소에 넣지 않습니다)
    ```bash
-   printf '%s' '{"user":"보내는주소@gmail.com","pass":"앱비밀번호16자리"}' | gcloud secrets create GMAIL_SMTP --project=angelsday-9ff6f --data-file=-
+   echo -n '보내는주소@gmail.com 앱비밀번호16자리' | gcloud secrets create GMAIL_SMTP --project=angelsday-9ff6f --data-file=-
    gcloud secrets add-iam-policy-binding GMAIL_SMTP --project=angelsday-9ff6f --member=serviceAccount:298996740273-compute@developer.gserviceaccount.com --role=roles/secretmanager.secretAccessor
    ```
-   비밀번호를 바꿀 때는 같은 형식으로 `gcloud secrets versions add GMAIL_SMTP --data-file=-` 를 실행합니다.
-3. `firebase deploy --only functions:deliverMail`
+   값은 `주소 비밀번호` 를 공백 하나로 이어 쓴 형식입니다 (비밀번호 안의 띄어쓰기는 무시). 예전 `{"user":…,"pass":…}` JSON 형식도 읽습니다.
+   비밀번호를 바꿀 때는 `echo -n '주소 새비밀번호' | gcloud secrets versions add GMAIL_SMTP --data-file=-` 를 실행합니다.
+3. `firebase deploy --only functions:deliverMail` — 함수는 배포할 때의 비밀 값 버전을 쓰므로, 값을 바꾼 뒤에는 꼭 다시 배포합니다.
+   값의 형식이 틀리면 발송 기록(`delivery.error`)에 이유만 남고, 비밀 값 내용은 남지 않습니다.
 
 - `example.com` 같은 예시 도메인 주소로는 보내지 않습니다. (데모 데이터 보호)
 - 개인 지메일은 하루 약 500통까지 보낼 수 있습니다.

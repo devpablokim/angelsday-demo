@@ -8,8 +8,36 @@ import nodemailer from 'nodemailer';
 import { VENUE } from '../../shared/venue';
 import { db } from './app';
 
-/** {"user":"보내는 지메일 주소","pass":"앱 비밀번호 16자리"} — README 6-6 의 gcloud 명령으로 등록 */
+/** "보내는주소@gmail.com 앱비밀번호16자리" (공백으로 구분) — README 6-6 의 gcloud 명령으로 등록. 예전 JSON 형식도 읽습니다. */
 const GMAIL_SMTP = defineSecret('GMAIL_SMTP');
+
+/**
+ * 비밀 값을 읽습니다. 형식이 틀려도 오류 메시지에 비밀 값이 한 글자도 남지 않게 합니다
+ * (오류는 mail 문서의 delivery.error 와 함수 로그에 기록되기 때문 — JSON.parse 오류는 원문 일부를 담습니다).
+ */
+export function parseGmailSecret(raw: string): { user: string; pass: string } {
+  const s = raw.trim();
+  let user = '';
+  let pass = '';
+  if (s.startsWith('{')) {
+    try {
+      const o = JSON.parse(s) as { user?: unknown; pass?: unknown };
+      user = String(o.user ?? '');
+      pass = String(o.pass ?? '');
+    } catch {
+      throw new Error('GMAIL_SMTP 값을 읽지 못했어요. "보내는주소 앱비밀번호" 형식으로 다시 등록해 주세요.');
+    }
+  } else {
+    const [first = '', ...rest] = s.split(/\s+/);
+    user = first;
+    pass = rest.join('');
+  }
+  user = user.trim();
+  pass = pass.replace(/\s/g, '');
+  if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(user)) throw new Error('GMAIL_SMTP 값의 보내는 주소가 올바르지 않아요.');
+  if (pass.length !== 16) throw new Error(`GMAIL_SMTP 값의 앱 비밀번호가 16자리가 아니에요 (${pass.length}자리).`);
+  return { user, pass };
+}
 
 interface MailDoc {
   to?: string | string[];
@@ -26,9 +54,9 @@ export function isReservedAddress(to: string): boolean {
 let cached: { transporter: nodemailer.Transporter; from: string } | undefined;
 function gmail() {
   if (!cached) {
-    const { user, pass } = JSON.parse(GMAIL_SMTP.value()) as { user: string; pass: string };
+    const { user, pass } = parseGmailSecret(GMAIL_SMTP.value());
     cached = {
-      transporter: nodemailer.createTransport({ service: 'gmail', auth: { user, pass: pass.replace(/\s/g, '') } }),
+      transporter: nodemailer.createTransport({ service: 'gmail', auth: { user, pass } }),
       from: `"${VENUE.name}" <${user}>`,
     };
   }
