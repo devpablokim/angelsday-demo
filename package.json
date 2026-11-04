@@ -13,7 +13,10 @@
     "deploy": "npm run build && firebase deploy",
     "deploy:hosting": "node scripts/deploy-hosting.mjs",
     "deploy:rules": "node scripts/deploy-rules.mjs",
-    "build:firebase": "tsc -p tsconfig.json --noEmit && vite build --mode firebase"
+    "build:firebase": "tsc -p tsconfig.json --noEmit && vite build --mode firebase",
+    "build:lunelle": "tsc -p tsconfig.json --noEmit && vite build --mode lunelle",
+    "deploy:lunelle": "node scripts/deploy-hosting.mjs --config hosting.lunelle.json",
+    "brand:lunelle": "python3 scripts/brand/lunelle/make.py && node scripts/brand/render-icons.cjs lunelle"
   },
   "dependencies": {
     "firebase": "^13.1.0",

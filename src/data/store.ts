@@ -58,7 +58,7 @@ export const ENV = {
   mode: (import.meta.env.VITE_DATA_MODE as 'demo' | 'firebase' | undefined) ?? 'demo',
   adminPasscode: (import.meta.env.VITE_ADMIN_DEMO_PASSCODE as string | undefined) ?? 'angels2026',
   kakaoUrl: (import.meta.env.VITE_KAKAO_CHANNEL_URL as string | undefined) ?? 'https://pf.kakao.com/',
-  publicBaseUrl: (import.meta.env.VITE_PUBLIC_BASE_URL as string | undefined) || (typeof location !== 'undefined' ? location.origin : ''),
+  publicBaseUrl: (import.meta.env.VITE_PUBLIC_BASE_URL as string | undefined) || (typeof location !== 'undefined' ? location.origin + import.meta.env.BASE_URL.replace(/\/$/, '') : ''),
   hashRouter: import.meta.env.MODE === 'preview',
   designSystemUrl: (import.meta.env.VITE_DESIGN_SYSTEM_URL as string | undefined) || undefined,
 };

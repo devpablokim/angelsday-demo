@@ -7,6 +7,7 @@
  *
  *   node scripts/deploy-hosting.mjs                # firebase.json 의 hosting.site 로 배포
  *   node scripts/deploy-hosting.mjs --site my-site --dir dist
+ *   node scripts/deploy-hosting.mjs --config hosting.lunelle.json   # 데모 브랜드 사이트
  *
  * 인증: FIREBASE_SERVICE_ACCOUNT(JSON 내용) → GOOGLE_APPLICATION_CREDENTIALS(파일 경로) → .secrets/firebase-service-account.json
  * 프록시 환경에서는 NODE_USE_ENV_PROXY=1 로 실행하세요 (Node 22.21+).
@@ -19,7 +20,8 @@ import { accessToken, api, root } from './_gcp.mjs';
 
 const args = Object.fromEntries(process.argv.slice(2).reduce((acc, a, i, arr) => (a.startsWith('--') ? [...acc, [a.slice(2), arr[i + 1]]] : acc), []));
 const firebaseJson = JSON.parse(readFileSync(join(root, 'firebase.json'), 'utf8'));
-const hosting = firebaseJson.hosting;
+// --config hosting.<브랜드>.json 으로 데모 브랜드 사이트처럼 다른 호스팅 설정을 쓸 수 있습니다
+const hosting = args.config ? JSON.parse(readFileSync(resolve(root, args.config), 'utf8')) : firebaseJson.hosting;
 const site = args.site ?? hosting.site;
 const dir = resolve(root, args.dir ?? hosting.public);
 const API = 'https://firebasehosting.googleapis.com/v1beta1';
@@ -45,7 +47,8 @@ function servingConfig(h) {
 
 async function main() {
   if (!site) throw new Error('배포할 사이트가 없어요. firebase.json 의 hosting.site 또는 --site 를 지정하세요.');
-  if (!existsSync(join(dir, 'index.html'))) throw new Error(`${dir}/index.html 이 없어요. 먼저 npm run build 를 실행하세요.`);
+  const entry = hosting.entry ?? 'index.html';
+  if (!existsSync(join(dir, entry))) throw new Error(`${dir}/${entry} 이 없어요. 먼저 빌드를 실행하세요.`);
   const token = await accessToken();
   const call = api(token);
 

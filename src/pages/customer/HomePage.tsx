@@ -359,7 +359,7 @@ function PhotoStrip({ photos, title, onOpen }: { photos: string[]; title: string
   );
 }
 
-function Lightbox({ state, onChange }: { state: { list: string[]; i: number; title: string } | null; onChange: (s: { list: string[]; i: number; title: string } | null) => void }) {
+export function Lightbox({ state, onChange }: { state: { list: string[]; i: number; title: string } | null; onChange: (s: { list: string[]; i: number; title: string } | null) => void }) {
   const move = (d: number) => state && onChange({ ...state, i: (state.i + d + state.list.length) % state.list.length });
   useEffect(() => {
     if (!state) return;

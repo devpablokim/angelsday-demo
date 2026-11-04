@@ -86,7 +86,7 @@ function checkFirst(b: Booking, n: number, t: Date): Booking {
 
 export function buildSeed(now: Date = new Date()): { bookings: Booking[]; calendar: CalendarEntry[] } {
   const T = todayKST(now);
-  const base = typeof location !== 'undefined' ? location.origin : 'https://angelsday.example';
+  const base = typeof location !== 'undefined' ? location.origin + import.meta.env.BASE_URL.replace(/\/$/, '') : 'https://angelsday.example';
   const list: Booking[] = [];
 
   // 1) STEP 4 — 이몽룡 ♥ 성춘향 스몰웨딩 (준비 중)

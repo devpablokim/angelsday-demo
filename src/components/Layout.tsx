@@ -11,6 +11,7 @@ const NAV = [
   { to: '/calendar', label: '대관 가능일', en: 'SCHEDULE' },
   { to: '/#halls', label: '홀 소개', en: 'PARTY HALL' },
   { to: '/#events', label: '행사 안내', en: 'PARTY TYPE' },
+  { to: '/catering', label: '케이터링', en: 'CATERING' },
   { to: '/#gallery', label: '갤러리', en: 'GALLERY' },
   { to: '/#location', label: '오시는 길', en: 'LOCATION' },
   { to: '/my', label: '내 행사 조회', en: 'MY EVENT' },
@@ -103,7 +104,7 @@ export function SiteFooter() {
             상호 {VENUE.name} · 대표 {VENUE.ceo} · 사업자등록번호 {VENUE.bizNo}
           </span>
           <span className="row gap-16">
-            <a href={ENV.designSystemUrl ?? (ENV.hashRouter ? './design-system/index.html' : '/design-system/')}>디자인 시스템</a>
+            <a href={ENV.designSystemUrl ?? (ENV.hashRouter ? './design-system/index.html' : `${import.meta.env.BASE_URL}design-system/`)}>디자인 시스템</a>
             <Link to="/admin">관리자</Link>
             <span>© Since {VENUE.since} 엔젤스데이 파티하우스{store.mode === 'demo' ? ' · DEMO' : ''}</span>
           </span>

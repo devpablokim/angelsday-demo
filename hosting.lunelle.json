@@ -1,0 +1,18 @@
+{
+  "site": "hobbytan-venue",
+  "public": "dist-lunelle",
+  "entry": "demo/index.html",
+  "headers": [
+    { "source": "/demo/assets/**", "headers": [{ "key": "Cache-Control", "value": "public, max-age=31536000, immutable" }] },
+    { "source": "**/*.html", "headers": [{ "key": "Cache-Control", "value": "no-cache" }] }
+  ],
+  "redirects": [
+    { "regex": "^/$", "destination": "/demo/", "type": 302 },
+    { "regex": "^/demo$", "destination": "/demo/", "type": 301 },
+    { "regex": "^/demo/design-system$", "destination": "/demo/design-system/", "type": 301 }
+  ],
+  "rewrites": [
+    { "source": "/demo/design-system/**", "destination": "/demo/design-system/index.html" },
+    { "source": "/demo/**", "destination": "/demo/index.html" }
+  ]
+}
