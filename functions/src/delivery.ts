@@ -25,7 +25,10 @@ export function parseGmailSecret(raw: string): { user: string; pass: string } {
       user = String(o.user ?? '');
       pass = String(o.pass ?? '');
     } catch {
-      throw new Error('GMAIL_SMTP 값을 읽지 못했어요. "보내는주소 앱비밀번호" 형식으로 다시 등록해 주세요.');
+      // 따옴표가 하나 빠진 정도의 손입력 실수는 그대로 읽습니다 (예: "pass":abcd…")
+      user = /"?user"?\s*:\s*"?([^",}\s]+)/.exec(s)?.[1] ?? '';
+      pass = /"?pass"?\s*:\s*"?([^"}]*)/.exec(s)?.[1] ?? '';
+      if (!user || !pass) throw new Error('GMAIL_SMTP 값을 읽지 못했어요. "보내는주소 앱비밀번호" 형식으로 다시 등록해 주세요.');
     }
   } else {
     const [first = '', ...rest] = s.split(/\s+/);
