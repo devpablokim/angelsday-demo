@@ -155,6 +155,15 @@ service cloud.firestore {
       allow write: if false;
     }
 
+    // ── 루넬 데모 메일 요청: 로그인 없는 데모(hobbytan-venue)가 요청 한 건만 씁니다. 읽기·수정·삭제 불가.
+    //    내용 검증·하루 한도·실제 발송은 demoMail 함수가 하고, 요청 문서는 바로 지웁니다.
+    match /demoMailRequests/{id} {
+      allow create: if request.resource.data.keys().hasOnly(['payload'])
+        && request.resource.data.payload is string
+        && request.resource.data.payload.size() < 100000;
+      allow read, update, delete: if false;
+    }
+
     match /{document=**} {
       allow read, write: if false;
     }
