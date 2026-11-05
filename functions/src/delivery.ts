@@ -46,6 +46,9 @@ interface MailDoc {
   to?: string | string[];
   message?: { subject?: string; html?: string; text?: string };
   meta?: { bookingId?: string; ruleId?: string };
+  /** 보내는 사람 이름 (없으면 VENUE.name) — 데모 브랜드 메일(demoMail)이 씁니다. 서버만 mail 문서를 씁니다. */
+  fromName?: string;
+  replyTo?: string;
 }
 
 /** 예시용 도메인(RFC 2606 · 6761)은 보내지 않습니다 — 데모 시드 데이터가 실제로 발송되지 않도록 */
@@ -54,13 +57,13 @@ export function isReservedAddress(to: string): boolean {
   return /(^|\.)example\.(com|net|org)$/.test(domain) || /\.(test|example|invalid|localhost)$/.test(domain);
 }
 
-let cached: { transporter: nodemailer.Transporter; from: string } | undefined;
+let cached: { transporter: nodemailer.Transporter; user: string } | undefined;
 function gmail() {
   if (!cached) {
     const { user, pass } = parseGmailSecret(GMAIL_SMTP.value());
     cached = {
       transporter: nodemailer.createTransport({ service: 'gmail', auth: { user, pass } }),
-      from: `"${VENUE.name}" <${user}>`,
+      user,
     };
   }
   return cached;
@@ -88,8 +91,9 @@ export const deliverMail = onDocumentCreated({ document: 'mail/{mailId}', secret
   }
 
   try {
-    const { transporter, from } = gmail();
-    const info = await transporter.sendMail({ from, to, subject: mail.message?.subject, html: mail.message?.html, text: mail.message?.text });
+    const { transporter, user } = gmail();
+    const name = (mail.fromName || VENUE.name).replace(/["\r\n<>]/g, '');
+    const info = await transporter.sendMail({ from: `"${name}" <${user}>`, replyTo: mail.replyTo || undefined, to, subject: mail.message?.subject, html: mail.message?.html, text: mail.message?.text });
     await ref.update({
       'delivery.state': 'SUCCESS',
       'delivery.endTime': FieldValue.serverTimestamp(),

@@ -61,6 +61,8 @@ export const ENV = {
   publicBaseUrl: (import.meta.env.VITE_PUBLIC_BASE_URL as string | undefined) || (typeof location !== 'undefined' ? location.origin + import.meta.env.BASE_URL.replace(/\/$/, '') : ''),
   hashRouter: import.meta.env.MODE === 'preview',
   designSystemUrl: (import.meta.env.VITE_DESIGN_SYSTEM_URL as string | undefined) || undefined,
+  /** 데모 모드에서 방문자 본인에게 실제 안내 메일을 요청하는 Firestore REST 주소 (루넬 데모 빌드만 — .env.lunelle) */
+  demoMailUrl: (import.meta.env.VITE_DEMO_MAIL_URL as string | undefined) || undefined,
 };
 
 /** 고객 관리 페이지 절대 URL */

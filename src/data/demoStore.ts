@@ -95,8 +95,27 @@ export function createDemoStore(): DataStore {
     let out = b;
     for (const p of dueEmails(b, state.emailRules, new Date(), true)) {
       out = withEmailLog(out, p, renderEmail(p.rule.id, out, baseUrl()).subject);
+      sendRealDemoMail(p.rule.id, out);
     }
     return out;
+  }
+
+  /**
+   * 루넬 데모: 방문자가 직접 만든 예약이면 문의서에 적은 본인 주소로 실제 메일을 보냅니다.
+   * 메일 내용은 서버(demoMail 함수)가 정해진 템플릿으로 만들고, 하루 한도도 서버가 지킵니다.
+   * 시드 고객(demo-…)과 예시 도메인(example.com 등)은 보내지 않습니다.
+   */
+  function sendRealDemoMail(ruleId: string, b: Booking) {
+    const url = ENV.demoMailUrl;
+    const to = b.customer.email.trim();
+    const domain = to.split('@').pop()?.toLowerCase() ?? '';
+    if (!url || b.id.startsWith('demo-') || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(to)) return;
+    if (/(^|\.)example\.(com|net|org)$/.test(domain) || /\.(test|example|invalid|localhost)$/.test(domain)) return;
+    // 메일 템플릿에 쓰지 않는 사진·발송 기록·행사 기록은 빼고 보냅니다
+    const payload = JSON.stringify({ ruleId, booking: { ...b, photos: [], emails: [], timeline: [] } });
+    const body = JSON.stringify({ fields: { payload: { stringValue: payload } } });
+    // 페이지를 옮겨도 요청이 끊기지 않게 (keepalive 는 64KB 까지)
+    void fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body, keepalive: body.length < 60_000 }).catch(() => undefined);
   }
 
   function put(b: Booking) {
@@ -185,6 +204,7 @@ export function createDemoStore(): DataStore {
       if (!b || !rule) return;
       const content = renderEmail(ruleId, b, baseUrl());
       const next = withEmailLog(b, { rule, status: 'due', scheduledFor: new Date().toISOString() }, content.subject);
+      sendRealDemoMail(ruleId, next);
       const i = state.bookings.findIndex((x) => x.id === bookingId);
       state = { ...state, bookings: state.bookings.map((x, j) => (j === i ? ops.log(next, 'admin', 'email', `메일 수동 발송: ${content.subject}`, true) : x)) };
       persist();
