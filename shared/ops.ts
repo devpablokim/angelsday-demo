@@ -3,12 +3,16 @@ import { formatDate, todayKST } from './dates';
 import { defaultRequirements, eventConfig, honoreesFromForm } from './eventTypes';
 import { accessCode, bookingToken, receiptNo, uid } from './ids';
 import { generatePrep } from './prepTemplates';
+import { contractDiff, contractTemplate } from './contract';
 import { calcQuote } from './quote';
 import type {
   Actor,
   AdjustRequest,
   Booking,
   ChecklistItem,
+  ContractChange,
+  ContractTemplateId,
+  ContractVersion,
   EventType,
   HallId,
   Payment,
@@ -221,4 +225,47 @@ export function cancelBooking(b: Booking, reason: string): Booking {
 
 export function isPast(b: Booking, today = todayKST()): boolean {
   return b.date < today;
+}
+
+// ───────── 계약서 ─────────
+
+export interface ContractChangeInput {
+  requester: string;
+  channel: ContractChange['channel'];
+  staff: string;
+  amountDelta: number;
+  settlement: ContractChange['settlement'];
+  memo: string;
+}
+
+/**
+ * 계약서를 발행합니다. 첫 발행은 1판, 그 뒤로는 변경 기록(change)이 꼭 있어야 하고
+ * 바뀐 칸(변경 전 → 변경 후)은 이전 판과 비교해 자동으로 남깁니다. 발행된 판과 변경 기록은 고치지 않습니다.
+ */
+export function issueContract(b: Booking, templateId: ContractTemplateId, values: Record<string, string>, staff: string, change?: ContractChangeInput): Booking {
+  const prev = b.contract?.versions ?? [];
+  const last = prev[prev.length - 1];
+  const version = prev.length + 1;
+  const clean = Object.fromEntries(Object.entries(values).map(([k, v]) => [k, String(v ?? '')]));
+  const issued: ContractVersion = { version, templateId, values: clean, issuedAt: nowIso(), issuedBy: staff };
+  const changes = b.contract?.changes ?? [];
+  let record: ContractChange | undefined;
+  if (last) {
+    if (!change) throw new Error('변경 계약서는 변경 기록(요청자·경로·사유)을 함께 남겨야 해요.');
+    const items = last.templateId === templateId ? contractDiff(templateId, last.values, clean) : [{ key: 'templateId', label: '계약서 양식', before: contractTemplate(last.templateId).label, after: contractTemplate(templateId).label }];
+    if (!items.length) throw new Error('이전 계약서와 달라진 내용이 없어요.');
+    record = { id: uid('chg'), at: nowIso(), version, items, ...change };
+  }
+  const next: Booking = { ...b, contract: { versions: [...prev, issued], changes: record ? [...changes, record] : changes } };
+  const label = contractTemplate(templateId).label;
+  return log(next, 'admin', 'contract', record ? `계약서 v${version} 발행 (변경 ${record.items.length}건: ${record.items.slice(0, 3).map((i) => i.label).join(', ')}${record.items.length > 3 ? ' 외' : ''})` : `${label} v1 발행`);
+}
+
+/** 고객이 최신 계약서 내용을 확인했습니다 */
+export function confirmContract(b: Booking, version: number): Booking {
+  const versions = b.contract?.versions ?? [];
+  const last = versions[versions.length - 1];
+  if (!last || last.version !== version || last.confirmedAt) return b;
+  const next: Booking = { ...b, contract: { ...b.contract!, versions: [...versions.slice(0, -1), { ...last, confirmedAt: nowIso() }] } };
+  return log(next, 'customer', 'contract', `계약서 v${version} 내용 확인`);
 }

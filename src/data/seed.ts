@@ -1,5 +1,6 @@
 // 데모 데이터 — 오늘 날짜를 기준으로 6단계 전체를 둘러볼 수 있는 고객들을 만듭니다.
 import { DEFAULT_CATALOG } from '@shared/catalog';
+import { contractAutoValues, templateForEvent } from '@shared/contract';
 import { addDays, kstDateTime, todayKST, weekday } from '@shared/dates';
 import { backfillEmails } from '@shared/emailRules';
 import { uid } from '@shared/ids';
@@ -73,6 +74,14 @@ function pay(b: Booking, t: Date): Booking {
   return ops.at(t, () => ops.addPayment(noticed, 'deposit', amount, 'transfer', 'admin', `입금자명 ${b.customer.name}`));
 }
 
+/** 계약서 발행 (예약 정보로 자동 채움) · confirmHours 뒤 고객 확인 */
+function contract(b: Booking, t: Date, confirmHours?: number): Booking {
+  const tid = templateForEvent(b.eventType);
+  let x = ops.at(t, () => ops.issueContract(b, tid, contractAutoValues(tid, b, { manager: '김지은', today: todayKST(t) }), '김지은 플래너'));
+  if (confirmHours !== undefined) x = ops.at(new Date(t.getTime() + confirmHours * 3600000), () => ops.confirmContract(x, x.contract!.versions.length));
+  return x;
+}
+
 function progress(b: Booking, doneCount: number, doingCount: number, t: Date, notes: Record<number, string> = {}): Booking {
   let x = b;
   b.prepTasks.forEach((task, i) => {
@@ -123,6 +132,7 @@ export function buildSeed(now: Date = new Date()): { bookings: Booking[]; calend
     });
     b = pay(b, when(T, -34, 20, 15));
     b = ops.at(when(T, -34, 20, 20), () => ops.startPrep(b));
+    b = contract(b, when(T, -33, 10, 30), 11);
     b = progress(b, 2, 2, when(T, -10, 15), { 1: '하객 동선과 휠체어 통로 반영한 배치도를 공유드렸어요.', 2: '작약·수국 중심 시안 2종 준비 중', 3: '시식 가능 일정: 다음 주 화·목 오후' });
     b = checkFirst(b, 2, when(T, -6, 21));
     b = ops.at(when(T, -6, 21, 5), () => ops.addChecklist(b, '부케 · 부토니에 색감 결정', addDays(date, -21), 'customer'));
@@ -169,6 +179,23 @@ export function buildSeed(now: Date = new Date()): { bookings: Booking[]; calend
       q.memo = '평일 할인 10%를 적용했어요. 세금계산서는 행사 후 발행됩니다.';
     });
     b = pay(b, when(T, -1, 16, 40));
+    b = contract(b, when(T, -1, 17, 30));
+    {
+      const before = b;
+      b = { ...b, guests: 45 };
+      const food = b.quote?.lines.find((l) => /식대|뷔페/.test(`${l.category} ${l.label}`));
+      const t2 = when(T, 0, 10, 20);
+      b = ops.at(t2, () =>
+        ops.issueContract(b, 'banquet', { ...before.contract!.versions[0].values, ...contractAutoValues('banquet', b, { manager: '김지은', today: todayKST(t2) }) }, '김지은 플래너', {
+          requester: `${b.customer.name} ${b.customer.phone}`,
+          channel: 'phone',
+          staff: '김지은 플래너',
+          amountDelta: (food?.unitPrice ?? 0) * 3,
+          settlement: 'extra',
+          memo: '송년회 참석 인원 확정으로 보증 인원 42명 → 45명 변경 (전화 요청)',
+        }),
+      );
+    }
     list.push(b);
   }
 
@@ -206,6 +233,7 @@ export function buildSeed(now: Date = new Date()): { bookings: Booking[]; calend
       q.discountLabel = '얼리버드 (4개월 전 확정)';
     });
     b = pay(b, new Date(kstDateTime(addDays(date, -115), 20)));
+    b = contract(b, new Date(kstDateTime(addDays(date, -114), 11)), 9);
     b = ops.at(new Date(kstDateTime(addDays(date, -115), 20, 10)), () => ops.startPrep(b));
     b = progress(b, 99, 0, new Date(kstDateTime(addDays(date, -1), 18)));
     b = checkFirst(b, 99, new Date(kstDateTime(addDays(date, -2), 21)));
@@ -250,6 +278,7 @@ export function buildSeed(now: Date = new Date()): { bookings: Booking[]; calend
     b = submit(b, { hallId: 'aloha', guestsAdult: 80, seating: 'banquet', av: ['projector', 'sound', 'stage'], mc: true, performance: 'band', deco: 'photowall', menuTier: 'signature', drinks: 'alcohol', snap: true, taxInvoice: true, bizNo: '234-56-78901' }, when(T, -44, 17));
     b = quote(b, when(T, -43, 10));
     b = pay(b, when(T, -40, 14));
+    b = contract(b, when(T, -40, 16), 20);
     b = ops.at(when(T, -40, 14, 5), () => ops.startPrep(b));
     b = progress(b, 99, 0, when(T, 0, 9));
     b = checkFirst(b, 99, when(T, -1, 18));
@@ -267,6 +296,7 @@ export function buildSeed(now: Date = new Date()): { bookings: Booking[]; calend
     b = submit(b, { hallId: 'sia', guestsAdult: 30, guestsKids: 6, dolsang: 'hanok', theme: 'green', doljabi: true, mc: false, video: 'play', menuTier: 'standard', drinks: 'soft', snap: 'snap', gifts: 'ricecake' }, when(T, -49, 21));
     b = quote(b, when(T, -48, 11));
     b = pay(b, when(T, -46, 19));
+    b = contract(b, when(T, -45, 11), 5);
     b = ops.at(when(T, -46, 19, 5), () => ops.startPrep(b));
     b = progress(b, 3, 1, when(T, -2, 14), { 3: '돌잡이 소품과 한옥 포토존 소품 준비 중이에요.' });
     b = checkFirst(b, 2, when(T, -3, 22));

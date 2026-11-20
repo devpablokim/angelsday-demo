@@ -144,6 +144,47 @@ export interface RevisionRequest {
   repliedAt?: ISODateTime;
 }
 
+/** 계약서 양식 — 엔젤스데이 엑셀 계약서 4종 (public/contracts/*.xlsx) */
+export type ContractTemplateId = 'dol' | 'birthday' | 'wedding' | 'banquet';
+
+/** 발행된 계약서 한 판. 값은 양식의 칸(key)별 글자이며, 발행 뒤에는 바꾸지 않습니다. */
+export interface ContractVersion {
+  version: number;
+  templateId: ContractTemplateId;
+  values: Record<string, string>;
+  issuedAt: ISODateTime;
+  issuedBy: string;
+  /** 고객이 '계약 내용을 확인했어요'를 누른 시각 */
+  confirmedAt?: ISODateTime;
+}
+
+export type ChangeChannel = 'phone' | 'kakao' | 'sms' | 'email' | 'visit';
+
+/** 계약 변경 기록 — 지우거나 고칠 수 없고, 정정은 새 기록으로만 남깁니다. */
+export interface ContractChange {
+  id: string;
+  /** 변경 일시 */
+  at: ISODateTime;
+  /** 이 변경으로 발행된 계약서 판 */
+  version: number;
+  items: { key: string; label: string; before: string; after: string }[];
+  /** 요청자 (고객측 이름·연락처) */
+  requester: string;
+  channel: ChangeChannel;
+  /** 접수·수정한 직원 */
+  staff: string;
+  /** 금액 변동 (원, 추가금 +, 환불 -) */
+  amountDelta: number;
+  settlement: 'none' | 'extra' | 'refund';
+  /** 변경 사유 */
+  memo: string;
+}
+
+export interface BookingContract {
+  versions: ContractVersion[];
+  changes: ContractChange[];
+}
+
 export interface ScheduleItem {
   time: string;
   title: string;
@@ -184,6 +225,9 @@ export interface Booking {
   photoAlbumUrl?: string;
   photosReleasedAt?: ISODateTime;
   revisionRequests?: RevisionRequest[];
+
+  /** 계약서 (판별 보관 · 변경 기록) */
+  contract?: BookingContract;
 
   timeline: TimelineEntry[];
   emails: EmailLog[];

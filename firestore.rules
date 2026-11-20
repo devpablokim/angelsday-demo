@@ -20,10 +20,11 @@ service cloud.firestore {
     match /bookings/{bookingId} {
       allow get: if true;
       allow list: if isAdmin();
-      allow delete: if isAdmin();
+      // 계약서가 발행된 예약은 지울 수 없습니다 (계약 판·변경 기록 보존 — 취소는 cancelledAt 으로)
+      allow delete: if isAdmin() && !('contract' in resource.data);
 
       allow create: if isAdmin() || validCustomerCreate(bookingId);
-      allow update: if isAdmin() || validCustomerUpdate();
+      allow update: if (isAdmin() && contractAppendOnly(resource.data, request.resource.data)) || validCustomerUpdate();
 
       function str(v, max) {
         return v is string && v.size() > 0 && v.size() <= max;
@@ -62,7 +63,7 @@ service cloud.firestore {
         return after.diff(before).affectedKeys().hasOnly([
             'requirements', 'requirementsSubmittedAt', 'guests', 'hallId', 'location',
             'adjustRequests', 'checklist', 'timeline', 'prepStartedAt', 'updatedAt',
-            'transferNotice', 'revisionRequests'
+            'transferNotice', 'revisionRequests', 'contract'
           ])
           && !('cancelledAt' in before)
           && after.requirements is map && after.requirements.size() <= 80
@@ -75,8 +76,32 @@ service cloud.firestore {
           && validTransferNotice(before, after)
           && appendOnly(before.get('revisionRequests', []), after.get('revisionRequests', []), 1)
           && newRevisionIsOpen(before.get('revisionRequests', []), after.get('revisionRequests', []))
+          && contractConfirmOnly(before, after)
           // 준비 시작은 예약금 결제 이후에만 (결제는 서버가 기록)
           && (!('prepStartedAt' in after) || before.payments.size() > 0);
+      }
+
+      // ── 계약서 ── 발행된 판과 변경 기록은 뒤에 추가만 됩니다 (관리자도 지우거나 고칠 수 없음, 정정은 새 판·새 기록으로).
+      // 판 안에서 나중에 채울 수 있는 것은 고객 확인 시각(confirmedAt) 하나뿐입니다.
+      function contractAppendOnly(before, after) {
+        return !('contract' in before)
+          || (('contract' in after)
+            && contractVersionsKept(before.contract.versions, after.contract.versions)
+            && appendOnly(before.contract.changes, after.contract.changes, 1));
+      }
+      function contractVersionsKept(a, b) {
+        return b is list && b.size() >= a.size() && b.size() <= a.size() + 1
+          && (a.size() <= 1 || b[0:a.size() - 1] == a[0:a.size() - 1])
+          && (a.size() == 0 || b[a.size() - 1] == a[a.size() - 1]
+            || (!('confirmedAt' in a[a.size() - 1]) && b[a.size() - 1].diff(a[a.size() - 1]).affectedKeys().hasOnly(['confirmedAt'])));
+      }
+      // 고객은 최신 판에 '확인' 시각만 남길 수 있습니다
+      function contractConfirmOnly(before, after) {
+        return !after.diff(before).affectedKeys().hasAny(['contract'])
+          || (('contract' in before) && ('contract' in after)
+            && after.contract.changes == before.contract.changes
+            && after.contract.versions.size() == before.contract.versions.size()
+            && contractVersionsKept(before.contract.versions, after.contract.versions));
       }
 
       // 기존 항목은 그대로 두고 최대 max 개까지 뒤에 추가만 허용

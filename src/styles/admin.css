@@ -342,3 +342,20 @@ label.btn { cursor: pointer; }
 .step-board__item.is-late .step-board__days { color: var(--color-status-promo, #b4532a); font-weight: 600; }
 .step-board__empty { padding: 4px 2px; }
 .step-mini__days { font-size: 11px; color: var(--color-muted); }
+
+/* 계약서 탭 */
+.contract-tab { display: flex; flex-direction: column; gap: 16px; }
+.contract-tab__head { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; }
+.contract-tab__tpl { min-width: 220px; margin: 0; }
+.contract-grid { display: grid; gap: 16px; grid-template-columns: minmax(0, 1fr); align-items: start; }
+@media (min-width: 1100px) { .contract-grid { grid-template-columns: minmax(340px, 420px) minmax(0, 1fr); } }
+.contract-side { display: flex; flex-direction: column; gap: 16px; position: sticky; top: 16px; }
+.contract-form { display: flex; flex-direction: column; gap: 4px; }
+.contract-group { border-top: 1px solid var(--color-hairline); padding: 10px 0 4px; }
+.contract-group summary { cursor: pointer; font-weight: 700; color: var(--color-ink); font-size: 14px; padding: 4px 0; }
+.contract-group__fields { display: flex; flex-direction: column; gap: 10px; padding: 8px 0 6px; }
+.contract-group .field { margin: 0; }
+.contract-group .field.is-changed .input { background: #fff6cc; border-color: #e7c200; }
+.contract-versions { display: flex; flex-direction: column; gap: 12px; }
+.contract-version { padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--color-hairline); background: var(--color-canvas-soft); }
+.contract-version__change { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }

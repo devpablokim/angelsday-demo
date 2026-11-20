@@ -214,3 +214,7 @@
 .media-item__play { position: absolute; inset: 0; margin: auto; width: 52px; height: 52px; border-radius: 50%; display: grid; place-items: center; background: rgba(20, 18, 16, 0.55); color: #fff; pointer-events: none; }
 .media-actions { display: flex; flex-wrap: wrap; align-items: center; justify-content: space-between; gap: 12px; padding: 14px 16px; border: 1px solid var(--color-hairline); border-radius: var(--radius-lg); background: var(--color-canvas-soft); }
 .media-video { width: 100%; max-height: 70vh; border-radius: var(--radius-md); background: #000; }
+
+/* 계약서 카드 (고객 페이지) */
+.my-grid__main { display: flex; flex-direction: column; gap: 16px; min-width: 0; }
+.contract-card__change { padding: 12px; border-radius: var(--radius-md); background: rgba(255, 255, 255, 0.6); }

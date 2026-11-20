@@ -16,9 +16,10 @@
     "build:firebase": "tsc -p tsconfig.json --noEmit && vite build --mode firebase",
     "build:lunelle": "tsc -p tsconfig.json --noEmit && vite build --mode lunelle",
     "deploy:lunelle": "node scripts/deploy-hosting.mjs --config hosting.lunelle.json",
-    "brand:lunelle": "python3 scripts/brand/lunelle/make.py && node scripts/brand/render-icons.cjs lunelle"
+    "brand:lunelle": "python3 scripts/brand/lunelle/make.py && node scripts/brand/render-icons.cjs lunelle && node scripts/brand/render-contract-media.cjs lunelle"
   },
   "dependencies": {
+    "fflate": "^0.8.3",
     "firebase": "^13.1.0",
     "html2canvas": "^1.4.1",
     "jspdf": "^4.2.1",

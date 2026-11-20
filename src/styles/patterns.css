@@ -133,3 +133,12 @@
 /* PDF 는 A4 한 장에 최대한 담기도록 표 간격을 줄입니다 */
 .quote-doc--pdf .quote-doc__table td { padding: 6px 0; line-height: 1.45; }
 .quote-doc--pdf .quote-doc__cat td { padding: 10px 0 0; }
+
+/* ───────── 계약서 (엑셀 양식 미리보기 · 바뀐 내용) ───────── */
+.contract-preview__pages { display: flex; flex-direction: column; gap: 16px; --contract-scale: 0.5; transition: opacity var(--duration-fast); }
+.contract-preview__pages.is-busy { opacity: 0.55; }
+.contract-page { position: relative; width: 100%; aspect-ratio: 794 / 1123; overflow: hidden; background: #fff; border: 1px solid var(--color-hairline); border-radius: var(--radius-sm); }
+.contract-page > .xlsx-page { position: absolute; left: 0; top: 0; transform-origin: 0 0; transform: scale(var(--contract-scale)); }
+.contract-changes { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.contract-changes li { padding: 8px 10px; border-radius: var(--radius-sm); background: #fff; border: 1px solid var(--color-hairline); font-size: 14px; }
+.contract-changes s { text-decoration-thickness: 1px; }

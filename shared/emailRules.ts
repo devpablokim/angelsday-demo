@@ -1,5 +1,6 @@
 import { addDays, ddayLabel, formatDate, kstDateTime, todayKST } from './dates';
 import { eventConfig, headlinePlain } from './eventTypes';
+import { latestContract } from './contract';
 import { calcQuote, paidAmount } from './quote';
 import { computeStep, depositPaid } from './steps';
 import type { Booking, ISODateTime } from './types';
@@ -11,7 +12,7 @@ import { hallName, VENUE } from './venue';
  * - relative: 기준일(행사일·문의일·견적 발송일) ± N일 오전 10시(KST) 발송
  * Cloud Functions 의 매일 스케줄러와 관리자 화면(발송 예정 미리보기)이 같은 규칙을 사용합니다.
  */
-export type EmailEvent = 'created' | 'quote_sent' | 'adjust_replied' | 'transfer_notified' | 'deposit_paid' | 'balance_paid' | 'photos_released' | 'revision_replied';
+export type EmailEvent = 'created' | 'quote_sent' | 'adjust_replied' | 'transfer_notified' | 'deposit_paid' | 'contract_issued' | 'balance_paid' | 'photos_released' | 'revision_replied';
 export type Anchor = 'eventDate' | 'createdAt' | 'quoteSentAt' | 'photosReleasedAt';
 export type Condition = 'always' | 'step1' | 'step2_quote_sent' | 'paid' | 'paid_not_done' | 'photos';
 
@@ -31,6 +32,7 @@ export const EMAIL_RULES: EmailRule[] = [
   { id: 'adjust_reply', name: '조정 요청 답변 알림', trigger: { type: 'event', event: 'adjust_replied' }, condition: 'always', defaultEnabled: true },
   { id: 'transfer_notified', name: '입금 알림 접수 · 확인 중 안내', trigger: { type: 'event', event: 'transfer_notified' }, condition: 'always', defaultEnabled: true },
   { id: 'deposit_paid', name: '입금 확인 · 예약 확정 · 영수증', trigger: { type: 'event', event: 'deposit_paid' }, condition: 'always', defaultEnabled: true },
+  { id: 'contract_issued', name: '계약서 발행 · 변경 안내 (고객 확인 요청)', trigger: { type: 'event', event: 'contract_issued' }, condition: 'always', defaultEnabled: true },
   { id: 'd60', name: 'D-60 준비 일정 안내', trigger: { type: 'relative', anchor: 'eventDate', offsetDays: -60, hour: 10 }, condition: 'paid_not_done', defaultEnabled: true },
   { id: 'd30', name: 'D-30 세부 연출 · 메뉴 확정 안내', trigger: { type: 'relative', anchor: 'eventDate', offsetDays: -30, hour: 10 }, condition: 'paid_not_done', defaultEnabled: true },
   { id: 'd14', name: 'D-14 영상 · 음악 · 자료 전달 요청', trigger: { type: 'relative', anchor: 'eventDate', offsetDays: -14, hour: 10 }, condition: 'paid_not_done', defaultEnabled: true },
@@ -148,6 +150,21 @@ export function renderEmail(ruleId: string, b: Booking, baseUrl: string, today =
         facts: [...facts, { label: '입금 확인 금액', value: money(paidAmount(b, 'deposit')) }, ...(totals ? [{ label: '잔금 (행사 당일 현장 결제)', value: money(totals.total - paidAmount(b)) }] : [])],
         cta: { label: '영수증 받고 준비 시작하기', url },
       };
+    case 'contract_issued': {
+      const v = latestContract(b);
+      const change = v && v.version > 1 ? b.contract?.changes.find((c) => c.version === v.version) : undefined;
+      const changed = change ? change.items.slice(0, 4).map((i) => `${i.label}: ${i.before || '—'} → ${i.after || '—'}`) : [];
+      return {
+        subject: change ? `[엔젤스데이] 변경된 계약서(v${v!.version})를 확인해 주세요` : `[엔젤스데이] 계약서가 준비되었어요 · ${formatDate(b.date)}`,
+        preheader: change ? `바뀐 내용 ${change.items.length}건 · 확인을 눌러 주시면 변경이 확정돼요` : '계약 내용을 확인하고 PDF로 받아 두세요.',
+        title: change ? '계약서가 변경되었어요' : '계약서가 준비되었어요',
+        paragraphs: change
+          ? [`${name}님, 요청하신 내용을 반영해 계약서를 새로 발행했어요.`, ...changed, '페이지에서 바뀐 부분을 확인하시고 ‘계약 내용을 확인했어요’를 눌러 주세요. 확인하시면 변경이 확정돼요.']
+          : [`${name}님, 엔젤스데이 계약서를 발행했어요.`, '페이지에서 계약서를 확인하시고 A4 PDF로 내려받아 보관해 주세요. 내용이 맞으면 ‘계약 내용을 확인했어요’를 눌러 주세요.'],
+        facts: [...facts, ...(v ? [{ label: '계약서', value: `v${v.version} · ${formatDate(v.issuedAt.slice(0, 10))} 발행` }] : [])],
+        cta: { label: '계약서 확인하기', url },
+      };
+    }
     case 'balance_paid':
       return {
         subject: '[엔젤스데이] 잔금 결제가 확인되었어요',
@@ -294,6 +311,7 @@ export function planEmails(b: Booking, enabled: Record<string, boolean>, now: Da
         adjust_replied: b.adjustRequests.some((r) => !!r.reply),
         transfer_notified: !!b.transferNotice,
         deposit_paid: !!paidAt,
+        contract_issued: (b.contract?.versions.length ?? 0) > 0,
         balance_paid: b.payments.some((p) => p.kind === 'balance'),
         photos_released: !!b.photosReleasedAt,
         revision_replied: (b.revisionRequests ?? []).some((r) => !!r.reply),
@@ -371,6 +389,7 @@ export function backfillEmails(b: Booking, baseUrl: string, now: Date = new Date
     adjust_replied: b.adjustRequests.find((r) => r.repliedAt)?.repliedAt,
     transfer_notified: b.transferNotice?.at,
     deposit_paid: b.payments.find((p) => p.kind === 'deposit')?.paidAt,
+    contract_issued: b.contract?.versions[0]?.issuedAt,
     balance_paid: b.payments.find((p) => p.kind === 'balance')?.paidAt,
     photos_released: b.photosReleasedAt,
     revision_replied: (b.revisionRequests ?? []).find((r) => r.repliedAt)?.repliedAt,

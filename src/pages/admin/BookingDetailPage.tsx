@@ -10,6 +10,7 @@ import { copyText, Empty, EventBadge, PageLoading, useToast } from '../../compon
 import { useBooking, useToday } from '../../data/hooks';
 import { customerUrl } from '../../data/store';
 import { ChecklistTab } from './detail/ChecklistTab';
+import { ContractTab } from './detail/ContractTab';
 import { EmailsTab } from './detail/EmailsTab';
 import { OverviewTab } from './detail/OverviewTab';
 import { PaymentsTab } from './detail/PaymentsTab';
@@ -24,6 +25,7 @@ const TABS = [
   { id: 'requirements', label: '필요사항' },
   { id: 'quote', label: '견적' },
   { id: 'payments', label: '결제' },
+  { id: 'contract', label: '계약서' },
   { id: 'prep', label: '준비 리스트' },
   { id: 'checklist', label: '고객 체크리스트' },
   { id: 'photos', label: '사진' },
@@ -162,6 +164,7 @@ export function BookingDetailPage() {
         {tab === 'requirements' && <RequirementsTab booking={b} />}
         {tab === 'quote' && <QuoteTab booking={b} />}
         {tab === 'payments' && <PaymentsTab booking={b} />}
+        {tab === 'contract' && <ContractTab booking={b} />}
         {tab === 'prep' && <PrepTab booking={b} />}
         {tab === 'checklist' && <ChecklistTab booking={b} />}
         {tab === 'photos' && <PhotosTab booking={b} />}

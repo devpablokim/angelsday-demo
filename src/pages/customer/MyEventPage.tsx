@@ -13,6 +13,7 @@ import { copyText, PageLoading, useToast } from '../../components/ui';
 import { useBooking, useStore, useToday } from '../../data/hooks';
 import { customerUrl, ENV } from '../../data/store';
 import { StepEventDay, StepPaid, StepPhotos, StepPrep } from './steps/StepAfter';
+import { ContractCard } from './ContractCard';
 import { StepQuote } from './steps/StepQuote';
 import { RequirementsSummary, StepRequirementsForm } from './steps/StepRequirements';
 
@@ -63,6 +64,7 @@ export function MyEventPage() {
         <div className="my-grid">
           <div className="my-grid__main">
             <StepPanel booking={b} view={view} current={step} onJump={setViewing} />
+            <ContractCard booking={b} />
           </div>
           <aside className="my-grid__aside">
             <BookingInfo booking={b} />

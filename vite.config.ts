@@ -1,7 +1,8 @@
 import { defineConfig, type Plugin } from 'vite';
 import react from '@vitejs/plugin-react';
-import { cpSync, existsSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
-import { join, resolve } from 'node:path';
+import { cpSync, existsSync, readdirSync, readFileSync, rmSync, writeFileSync } from 'node:fs';
+import { basename, join, resolve } from 'node:path';
+import { strFromU8, strToU8, unzipSync, zipSync } from 'fflate';
 import { fileURLToPath } from 'node:url';
 
 /**
@@ -95,6 +96,46 @@ function rebrandDesignSystem(html: string, brand: Brand | null): string {
   return out;
 }
 
+/**
+ * 도형 글상자(하단 주소 띠 등)는 한 문단이 여러 조각(run)으로 나뉘어 있어 치환이 안 걸릴 수 있습니다.
+ * 문단 글자를 이어 붙여 바꾸고, 바뀐 문단은 가장 큰 글자 서식 하나로 다시 씁니다.
+ */
+function rebrandDrawing(xml: string, brand: Brand): string {
+  const tag = (src: string, name: string) => new RegExp(`<a:${name}\\b[^>]*/>|<a:${name}\\b[^>]*>[\\s\\S]*?</a:${name}>`).exec(src)?.[0] ?? '';
+  const size = (run: string) => Number(/<a:rPr\b[^>]*\bsz="(\d+)"/.exec(run)?.[1] ?? 0);
+  return xml.replace(/<a:p>([\s\S]*?)<\/a:p>/g, (whole, inner: string) => {
+    const runs = [...inner.matchAll(/<a:r>([\s\S]*?)<\/a:r>/g)].map((m) => m[1]);
+    const text = runs.map((r) => /<a:t>([\s\S]*?)<\/a:t>/.exec(r)?.[1] ?? '').join('');
+    const next = rebrand(text, brand);
+    if (next === text) return whole;
+    const best = [...runs].sort((x, y) => size(y) - size(x))[0] ?? '';
+    return `<a:p>${tag(inner, 'pPr')}<a:r>${tag(best, 'rPr')}<a:t>${next}</a:t></a:r>${tag(inner, 'endParaRPr')}</a:p>`;
+  });
+}
+
+/**
+ * 계약서 엑셀 양식(contracts/*.xlsx)도 데모 브랜드로: 글자(공유 문자열·칸·도형·문서 속성)는 치환표로,
+ * 로고 그림은 src/brand/<id>/contracts/<양식>/<그림 이름> 으로 바꿉니다 (scripts/brand/render-contract-media.cjs).
+ */
+function rebrandContracts(dir: string, brand: Brand, brandDir: string) {
+  if (!existsSync(dir)) return;
+  for (const f of readdirSync(dir).filter((n) => n.endsWith('.xlsx'))) {
+    const path = join(dir, f);
+    const files = unzipSync(readFileSync(path));
+    for (const name of Object.keys(files)) {
+      if (/^xl\/drawings\/drawing\d+\.xml$/.test(name)) {
+        files[name] = strToU8(rebrandDrawing(strFromU8(files[name]), brand));
+      } else if (/^(xl\/sharedStrings|xl\/worksheets\/sheet\d+|xl\/workbook|docProps\/\w+)\.xml$/.test(name)) {
+        files[name] = strToU8(rebrand(strFromU8(files[name]), brand));
+      } else if (name.startsWith('xl/media/')) {
+        const swap = join(brandDir, 'contracts', basename(f, '.xlsx'), basename(name));
+        if (existsSync(swap)) files[name] = new Uint8Array(readFileSync(swap));
+      }
+    }
+    writeFileSync(path, zipSync(files, { level: 6 }));
+  }
+}
+
 function whiteLabel(brand: Brand | null): Plugin {
   const brandDir = brand && fileURLToPath(new URL(`./src/brand/${brand.id}/`, import.meta.url));
   let outDir = '';
@@ -125,6 +166,7 @@ function whiteLabel(brand: Brand | null): Plugin {
       // 원본 브랜드 로고 파일은 내보내지 않고, 데모 브랜드 아이콘으로 덮어씁니다
       rmSync(join(outDir, 'brand'), { recursive: true, force: true });
       cpSync(join(brandDir!, 'public'), outDir, { recursive: true });
+      rebrandContracts(join(outDir, 'contracts'), brand, brandDir!);
     },
   };
 }
