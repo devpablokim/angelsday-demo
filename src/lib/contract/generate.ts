@@ -99,16 +99,32 @@ export function downloadXlsx(pkg: XlsxPackage, filename: string) {
 export async function downloadPdf(pkg: XlsxPackage, filename: string, footnote?: string) {
   const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')]);
   const stage = document.createElement('div');
-  Object.assign(stage.style, { position: 'fixed', left: '-12000px', top: '0', pointerEvents: 'none' });
+  Object.assign(stage.style, {
+    position: 'fixed',
+    left: '-12000px',
+    top: '0',
+    pointerEvents: 'none',
+  });
   document.body.appendChild(stage);
   try {
     const pages = contractPages(pkg, { footnote });
     pages.forEach((p) => stage.appendChild(p));
     await document.fonts?.ready;
     await Promise.all(Array.from(stage.querySelectorAll('img')).map((img) => (img.complete ? null : new Promise((r) => ((img.onload = r), (img.onerror = r))))));
-    const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+    const pdf = new jsPDF({
+      unit: 'mm',
+      format: 'a4',
+      orientation: 'portrait',
+    });
     for (let i = 0; i < pages.length; i++) {
-      const canvas = await html2canvas(pages[i], { scale: 2.5, backgroundColor: '#ffffff', logging: false, width: A4.width, height: A4.height, windowWidth: A4.width });
+      const canvas = await html2canvas(pages[i], {
+        scale: 2.5,
+        backgroundColor: '#ffffff',
+        logging: false,
+        width: A4.width,
+        height: A4.height,
+        windowWidth: A4.width,
+      });
       if (i > 0) pdf.addPage();
       pdf.addImage(canvas.toDataURL('image/jpeg', 0.94), 'JPEG', 0, 0, 210, 297);
     }

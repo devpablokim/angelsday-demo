@@ -4,6 +4,8 @@ import { Icon } from '../../components/Icon';
 import { Sheet, useToast } from '../../components/ui';
 import { useStore } from '../../data/hooks';
 import { ENV } from '../../data/store';
+import { EVENT_TYPES } from '@shared/eventTypes';
+import { BUSINESS_UNITS } from '@shared/units';
 
 export function SettingsPage() {
   const store = useStore();
@@ -20,6 +22,23 @@ export function SettingsPage() {
       </div>
 
       <div className="detail-grid">
+        <section className="card">
+          <div className="title-md">사업부</div>
+          <p className="caption mt-4">
+            관리 화면은 베뉴와 케이터링으로 나눠 봅니다. 고객·메뉴 정보는 함께 쓰고, 고객 목록·대시보드·캘린더·가격표·메일 발송 예정은 사업부별로 따로 보여요. 왼쪽 위에서 바꿀 수 있어요.
+          </p>
+          <ul className="list mt-8">
+            {BUSINESS_UNITS.map((u) => (
+              <li key={u.id} className="list-item">
+                <span className={`badge unit-tag unit-tag--${u.id}`}>{u.label}</span>
+                <div className="list-item__body">
+                  <div className="body-sm text-ink">{u.desc}</div>
+                  <div className="list-item__meta">{u.eventTypes.map((t) => EVENT_TYPES[t].label).join(' · ')}</div>
+                </div>
+              </li>
+            ))}
+          </ul>
+        </section>
         <section className="card">
           <div className="title-md">데이터 모드</div>
           <div className="mode-badge mt-16">
@@ -54,7 +73,8 @@ export function SettingsPage() {
             <li>
               <Icon name="settings" size={18} />
               <span>
-                GitHub Actions 자동 배포는 키 내용을 저장소 Secret(<code>FIREBASE_SERVICE_ACCOUNT</code>)에 넣어 사용해요.
+                GitHub Actions 자동 배포는 키 내용을 저장소 Secret(
+                <code>FIREBASE_SERVICE_ACCOUNT</code>)에 넣어 사용해요.
               </span>
             </li>
             <li>

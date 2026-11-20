@@ -186,7 +186,8 @@ export function buildSeed(now: Date = new Date()): { bookings: Booking[]; calend
       const food = b.quote?.lines.find((l) => /식대|뷔페/.test(`${l.category} ${l.label}`));
       const t2 = when(T, 0, 10, 20);
       b = ops.at(t2, () =>
-        ops.issueContract(b, 'banquet', { ...before.contract!.versions[0].values, ...contractAutoValues('banquet', b, { manager: '김지은', today: todayKST(t2) }) }, '김지은 플래너', {
+        // 직원이 다시 발행할 때처럼 이전 판 값에서 인원만 고칩니다
+        ops.issueContract(b, 'banquet', { ...before.contract!.versions[0].values, guests: '45명', buffetGuests: '45명' }, '김지은 플래너', {
           requester: `${b.customer.name} ${b.customer.phone}`,
           channel: 'phone',
           staff: '김지은 플래너',

@@ -6,17 +6,21 @@ import { useMemo, useState } from 'react';
 import { Link } from 'react-router';
 import { Icon } from '../../components/Icon';
 import { EventBadge, PageLoading, Switch, useToast } from '../../components/ui';
-import { useBookings, useEmailRules, useStore } from '../../data/hooks';
+import { useEmailRules, useStore } from '../../data/hooks';
 import { conditionText, errorMessage, triggerText } from './adminUtils';
 import { EmailPreview, PlanChip } from './detail/EmailsTab';
+import { UnitTag, useUnitBookings } from './unit';
 
 export function EmailsPage() {
-  const bookings = useBookings();
+  const bookings = useUnitBookings();
   const enabled = useEmailRules();
   const store = useStore();
   const toast = useToast();
   const [running, setRunning] = useState(false);
-  const [preview, setPreview] = useState<{ booking: Booking; ruleId: string } | null>(null);
+  const [preview, setPreview] = useState<{
+    booking: Booking;
+    ruleId: string;
+  } | null>(null);
 
   const upcoming = useMemo(() => {
     if (!bookings) return [];
@@ -64,8 +68,12 @@ export function EmailsPage() {
       <div className="admin-page__head">
         <div>
           <div className="overline">EMAIL AUTOMATION</div>
-          <h1 className="display-md">메일 자동화</h1>
-          <p className="caption">지금까지 {sentTotal}통 발송 · 지금 발송 대상 {dueCount}통</p>
+          <h1 className="display-md">
+            메일 자동화 <UnitTag />
+          </h1>
+          <p className="caption">
+            지금까지 {sentTotal}통 발송 · 지금 발송 대상 {dueCount}통
+          </p>
         </div>
         <button className="btn btn--primary btn--sm" onClick={() => void run()} disabled={running}>
           {running ? <span className="spinner" /> : <Icon name="send" size={16} />} 지금 스케줄러 실행
@@ -75,13 +83,15 @@ export function EmailsPage() {
       <div className="callout callout--neutral mb-16">
         <span className="callout__icon">i</span>
         <p className="body-sm">
-          운영 환경에서는 Cloud Functions 스케줄러가 <b className="text-ink">매일 오전 10:00(KST)</b>에 고객별 발송 시점을 계산해 메일을 보내고, 문의 접수 · 견적 발송 · 결제 같은 행동 메일은 즉시 발송돼요.
+          운영 환경에서는 Cloud Functions 스케줄러가 <b className="text-ink">매일 오전 10:00(KST)</b>에 고객별 발송 시점을 계산해 메일을 보내고, 문의 접수 · 견적 발송 · 결제 같은 행동 메일은 즉시
+          발송돼요.
           {store.mode === 'demo' ? ' 데모 모드에서는 실제 메일 대신 발송 기록만 남아요.' : ''}
         </p>
       </div>
 
       <section className="card">
         <div className="title-md">자동 메일 규칙 {EMAIL_RULES.length}개</div>
+        <p className="caption">규칙은 베뉴·케이터링 공통이고, 발송 기록과 예정 목록은 지금 고른 사업부 고객만 보여요.</p>
         <ul className="rule-list mt-8">
           {EMAIL_RULES.map((r) => (
             <li key={r.id} className={`rule ${enabled[r.id] === false ? 'is-off' : ''}`}>

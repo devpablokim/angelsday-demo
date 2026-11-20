@@ -4,12 +4,13 @@ import { computeStep, nextAction, STEPS } from '@shared/steps';
 import type { Booking, StepNo } from '@shared/types';
 import { Icon } from '../../components/Icon';
 import { copyText, Empty, EventBadge, PageLoading, useToast } from '../../components/ui';
-import { useBookings, useToday } from '../../data/hooks';
+import { useToday } from '../../data/hooks';
 import { customerUrl } from '../../data/store';
+import { UnitTag, useUnitBookings } from './unit';
 
 /** 단계별 고객 화면 미리보기 — 고객이 지금 보는 페이지를 바로 열고, 예약 비밀번호를 확인합니다. */
 export function PreviewPage() {
-  const bookings = useBookings();
+  const bookings = useUnitBookings();
   const today = useToday();
   const toast = useToast();
   if (!bookings) return <PageLoading />;
@@ -29,7 +30,9 @@ export function PreviewPage() {
       <div className="admin-page__head">
         <div>
           <div className="overline">CUSTOMER VIEW</div>
-          <h1 className="display-md">고객 화면 보기</h1>
+          <h1 className="display-md">
+            고객 화면 보기 <UnitTag />
+          </h1>
           <p className="caption">고객이 지금 보고 있는 페이지를 단계별로 확인해요. 고객은 ‘내 행사 조회’에 예약 비밀번호를 입력하거나 메일로 받은 링크로 들어와요.</p>
         </div>
       </div>

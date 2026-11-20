@@ -8,10 +8,70 @@ const REL_NS = 'http://schemas.openxmlformats.org/officeDocument/2006/relationsh
 
 // ───────── 색 ─────────
 const INDEXED = [
-  '000000', 'FFFFFF', 'FF0000', '00FF00', '0000FF', 'FFFF00', 'FF00FF', '00FFFF', '000000', 'FFFFFF', 'FF0000', '00FF00', '0000FF', 'FFFF00', 'FF00FF', '00FFFF',
-  '800000', '008000', '000080', '808000', '800080', '008080', 'C0C0C0', '808080', '9999FF', '993366', 'FFFFCC', 'CCFFFF', '660066', 'FF8080', '0066CC', 'CCCCFF',
-  '000080', 'FF00FF', 'FFFF00', '00FFFF', '800080', '800000', '008080', '0000FF', '00CCFF', 'CCFFFF', 'CCFFCC', 'FFFF99', '99CCFF', 'FF99CC', 'CC99FF', 'FFCC99',
-  '3366FF', '33CCCC', '99CC00', 'FFCC00', 'FF9900', 'FF6600', '666699', '969696', '003366', '339966', '003300', '333300', '993300', '993366', '333399', '333333',
+  '000000',
+  'FFFFFF',
+  'FF0000',
+  '00FF00',
+  '0000FF',
+  'FFFF00',
+  'FF00FF',
+  '00FFFF',
+  '000000',
+  'FFFFFF',
+  'FF0000',
+  '00FF00',
+  '0000FF',
+  'FFFF00',
+  'FF00FF',
+  '00FFFF',
+  '800000',
+  '008000',
+  '000080',
+  '808000',
+  '800080',
+  '008080',
+  'C0C0C0',
+  '808080',
+  '9999FF',
+  '993366',
+  'FFFFCC',
+  'CCFFFF',
+  '660066',
+  'FF8080',
+  '0066CC',
+  'CCCCFF',
+  '000080',
+  'FF00FF',
+  'FFFF00',
+  '00FFFF',
+  '800080',
+  '800000',
+  '008080',
+  '0000FF',
+  '00CCFF',
+  'CCFFFF',
+  'CCFFCC',
+  'FFFF99',
+  '99CCFF',
+  'FF99CC',
+  'CC99FF',
+  'FFCC99',
+  '3366FF',
+  '33CCCC',
+  '99CC00',
+  'FFCC00',
+  'FF9900',
+  'FF6600',
+  '666699',
+  '969696',
+  '003366',
+  '339966',
+  '003300',
+  '333300',
+  '993300',
+  '993366',
+  '333399',
+  '333333',
 ];
 
 function applyTint(hex: string, tint: number): string {
@@ -49,7 +109,10 @@ function applyTint(hex: string, tint: number): string {
     gg = hue(p, q, h);
     bb = hue(p, q, h - 1 / 3);
   }
-  const x = (v: number) => Math.round(Math.min(1, Math.max(0, v)) * 255).toString(16).padStart(2, '0');
+  const x = (v: number) =>
+    Math.round(Math.min(1, Math.max(0, v)) * 255)
+      .toString(16)
+      .padStart(2, '0');
   return `${x(rr)}${x(gg)}${x(bb)}`.toUpperCase();
 }
 
@@ -149,7 +212,7 @@ function parseFont(el: Element, color: (e: Element | null) => string | null): Fo
     size: Number(val('sz') ?? 11),
     bold: has('b'),
     italic: has('i'),
-    underline: u ? u.getAttribute('val') ?? 'single' : null,
+    underline: u ? (u.getAttribute('val') ?? 'single') : null,
     strike: has('strike'),
     color: color(first(el, 'color')),
   };
@@ -217,10 +280,22 @@ function loadStrings(pkg: XlsxPackage, color: (e: Element | null) => string | nu
 
 function runsOf(container: Element, color: (e: Element | null) => string | null): Run[] {
   const runs = kids(container, 'r');
-  if (!runs.length) return [{ text: kids(container, 't').map((t) => t.textContent ?? '').join('') }];
+  if (!runs.length)
+    return [
+      {
+        text: kids(container, 't')
+          .map((t) => t.textContent ?? '')
+          .join(''),
+      },
+    ];
   return runs.map((r) => {
     const rPr = first(r, 'rPr');
-    return { text: kids(r, 't').map((t) => t.textContent ?? '').join(''), font: rPr ? parseFont(rPr, color) : undefined };
+    return {
+      text: kids(r, 't')
+        .map((t) => t.textContent ?? '')
+        .join(''),
+      font: rPr ? parseFont(rPr, color) : undefined,
+    };
   });
 }
 
@@ -243,7 +318,20 @@ export function invalidate(pkg: XlsxPackage) {
 }
 
 // ───────── 숫자 서식 ─────────
-const BUILTIN: Record<number, string> = { 0: 'General', 1: '0', 2: '0.00', 3: '#,##0', 4: '#,##0.00', 9: '0%', 10: '0.00%', 37: '#,##0 ;(#,##0)', 38: '#,##0 ;[Red](#,##0)', 41: '_-* #,##0_-;-* #,##0_-;_-* "-"_-;_-@_-', 42: '_-"₩"* #,##0_-;-"₩"* #,##0_-;_-"₩"* "-"_-;_-@_-', 49: '@' };
+const BUILTIN: Record<number, string> = {
+  0: 'General',
+  1: '0',
+  2: '0.00',
+  3: '#,##0',
+  4: '#,##0.00',
+  9: '0%',
+  10: '0.00%',
+  37: '#,##0 ;(#,##0)',
+  38: '#,##0 ;[Red](#,##0)',
+  41: '_-* #,##0_-;-* #,##0_-;_-* "-"_-;_-@_-',
+  42: '_-"₩"* #,##0_-;-"₩"* #,##0_-;_-"₩"* "-"_-;_-@_-',
+  49: '@',
+};
 
 function formatNumber(n: number, code: string): string {
   if (!code || code === 'General') return Number.isInteger(n) ? String(n) : String(Math.round(n * 1e9) / 1e9);
@@ -290,7 +378,11 @@ function formatNumber(n: number, code: string): string {
   if (numStart < 0) return out.trim() ? out : String(n);
   const dec = numPart.includes('.') ? numPart.split('.')[1].replace(/[^0#?]/g, '').length : 0;
   const grouped = numPart.split('.')[0].includes(',');
-  const s = value.toLocaleString('en-US', { minimumFractionDigits: dec, maximumFractionDigits: dec, useGrouping: grouped });
+  const s = value.toLocaleString('en-US', {
+    minimumFractionDigits: dec,
+    maximumFractionDigits: dec,
+    useGrouping: grouped,
+  });
   return out.replace('\u0000', s);
 }
 
@@ -334,7 +426,21 @@ function applyFont(el: HTMLElement, f: Font) {
   el.style.color = f.color ?? '#000000';
 }
 
-const BORDER_W: Record<string, number> = { thin: 1, hair: 1, dotted: 1, dashed: 1, dashDot: 1, dashDotDot: 1, medium: 2, mediumDashed: 2, mediumDashDot: 2, mediumDashDotDot: 2, slantDashDot: 2, thick: 3, double: 3 };
+const BORDER_W: Record<string, number> = {
+  thin: 1,
+  hair: 1,
+  dotted: 1,
+  dashed: 1,
+  dashDot: 1,
+  dashDotDot: 1,
+  medium: 2,
+  mediumDashed: 2,
+  mediumDashDot: 2,
+  mediumDashDotDot: 2,
+  slantDashDot: 2,
+  thick: 3,
+  double: 3,
+};
 function cssBorder(e: Edge): string {
   const w = BORDER_W[e.style] ?? 1;
   const style = e.style === 'double' ? 'double' : /dot/i.test(e.style) && !/dash/i.test(e.style) ? 'dotted' : e.style === 'hair' ? 'dotted' : /dash/i.test(e.style) ? 'dashed' : 'solid';
@@ -394,14 +500,19 @@ export function renderSheet(pkg: XlsxPackage, sheet: SheetInfo, opts: RenderOpti
       else if (t === 'b') runs = v !== null ? [{ text: v === '1' ? 'TRUE' : 'FALSE' }] : [];
       else if (v !== null && v !== '') {
         const xf = styles.xfs[s];
-        const code = xf ? styles.numFmts.get(xf.numFmt) ?? BUILTIN[xf.numFmt] ?? 'General' : 'General';
+        const code = xf ? (styles.numFmts.get(xf.numFmt) ?? BUILTIN[xf.numFmt] ?? 'General') : 'General';
         runs = [{ text: formatNumber(Number(v), code) }];
         isNumber = true;
       }
       cells.set(ref, { s, runs, isNumber });
     }
   }
-  const area = sheet.area ?? { c1: 1, r1: 1, c2: Math.max(1, maxCol), r2: Math.max(1, maxRow) };
+  const area = sheet.area ?? {
+    c1: 1,
+    r1: 1,
+    c2: Math.max(1, maxCol),
+    r2: Math.max(1, maxRow),
+  };
   const W = (c: number) => colW.get(c) ?? defColW;
   const H = (r: number) => rowH.get(r) ?? defRowH;
   const xs: number[] = [];
@@ -427,7 +538,12 @@ export function renderSheet(pkg: XlsxPackage, sheet: SheetInfo, opts: RenderOpti
     if (!b) continue;
     const p = parseRef(a);
     const q = parseRef(b);
-    merges.set(`${colLetters(p.c)}${p.r}`, { c1: p.c, r1: p.r, c2: q.c, r2: q.r });
+    merges.set(`${colLetters(p.c)}${p.r}`, {
+      c1: p.c,
+      r1: p.r,
+      c2: q.c,
+      r2: q.r,
+    });
     for (let r = p.r; r <= q.r; r++) for (let c = p.c; c <= q.c; c++) if (r !== p.r || c !== p.c) covered.add(`${colLetters(c)}${r}`);
   }
 
@@ -441,7 +557,13 @@ export function renderSheet(pkg: XlsxPackage, sheet: SheetInfo, opts: RenderOpti
   const highlight = new Set(Array.from(opts.highlight ?? [], (x) => x.toUpperCase()));
   const el = document.createElement('div');
   el.className = 'xlsx-sheet';
-  Object.assign(el.style, { position: 'relative', width: `${width}px`, height: `${height}px`, background: '#ffffff', overflow: 'hidden' });
+  Object.assign(el.style, {
+    position: 'relative',
+    width: `${width}px`,
+    height: `${height}px`,
+    background: '#ffffff',
+    overflow: 'hidden',
+  });
   const fills = document.createDocumentFragment();
   const texts = document.createDocumentFragment();
   const lines = document.createDocumentFragment();
@@ -449,7 +571,13 @@ export function renderSheet(pkg: XlsxPackage, sheet: SheetInfo, opts: RenderOpti
   const line = (x: number, y: number, w: number, h: number, edge: Edge, horizontal: boolean) => {
     const t = BORDER_W[edge.style] ?? 1;
     const d = document.createElement('div');
-    Object.assign(d.style, { position: 'absolute', left: `${x - (horizontal ? 0 : t / 2)}px`, top: `${y - (horizontal ? t / 2 : 0)}px`, width: `${horizontal ? w : 0}px`, height: `${horizontal ? 0 : h}px` });
+    Object.assign(d.style, {
+      position: 'absolute',
+      left: `${x - (horizontal ? 0 : t / 2)}px`,
+      top: `${y - (horizontal ? t / 2 : 0)}px`,
+      width: `${horizontal ? w : 0}px`,
+      height: `${horizontal ? 0 : h}px`,
+    });
     d.style[horizontal ? 'borderTop' : 'borderLeft'] = cssBorder(edge);
     lines.appendChild(d);
   };
@@ -475,7 +603,14 @@ export function renderSheet(pkg: XlsxPackage, sheet: SheetInfo, opts: RenderOpti
 
       if (bg || hl) {
         const f = document.createElement('div');
-        Object.assign(f.style, { position: 'absolute', left: `${x}px`, top: `${y}px`, width: `${w}px`, height: `${h}px`, background: bg ?? 'transparent' });
+        Object.assign(f.style, {
+          position: 'absolute',
+          left: `${x}px`,
+          top: `${y}px`,
+          width: `${w}px`,
+          height: `${h}px`,
+          background: bg ?? 'transparent',
+        });
         if (hl) f.style.boxShadow = 'inset 0 0 0 9999px rgba(255, 214, 10, 0.45)';
         fills.appendChild(f);
       }
@@ -499,7 +634,7 @@ export function renderSheet(pkg: XlsxPackage, sheet: SheetInfo, opts: RenderOpti
       if (!text.trim() && !hl) continue;
       if (!text) continue;
       const box = document.createElement('div');
-      const hAlign = xf?.h === 'general' ? (cell?.isNumber ? 'right' : 'left') : xf?.h ?? 'left';
+      const hAlign = xf?.h === 'general' ? (cell?.isNumber ? 'right' : 'left') : (xf?.h ?? 'left');
       const vAlign = xf?.v ?? 'bottom';
       const wrap = !!xf?.wrap || hAlign === 'justify' || hAlign === 'distributed';
       Object.assign(box.style, {
@@ -567,7 +702,10 @@ export function renderSheet(pkg: XlsxPackage, sheet: SheetInfo, opts: RenderOpti
       const pos = (p: Element | null) => {
         if (!p) return null;
         const num = (n: string) => Number(first(p, n)?.textContent ?? 0);
-        return { x: colX(num('col') + 1) + num('colOff') / EMU_PER_PX, y: rowY(num('row') + 1) + num('rowOff') / EMU_PER_PX };
+        return {
+          x: colX(num('col') + 1) + num('colOff') / EMU_PER_PX,
+          y: rowY(num('row') + 1) + num('rowOff') / EMU_PER_PX,
+        };
       };
       const from = pos(first(anchor, 'from'));
       if (!from) continue;
@@ -602,7 +740,13 @@ export function renderSheet(pkg: XlsxPackage, sheet: SheetInfo, opts: RenderOpti
           const img = document.createElement('img');
           img.src = url;
           img.alt = '';
-          Object.assign(img.style, { position: 'absolute', left: `${box.x}px`, top: `${box.y}px`, width: `${w}px`, height: `${h}px` });
+          Object.assign(img.style, {
+            position: 'absolute',
+            left: `${box.x}px`,
+            top: `${box.y}px`,
+            width: `${w}px`,
+            height: `${h}px`,
+          });
           el.appendChild(img);
         } else if (item.localName === 'sp' || item.localName === 'cxnSp') {
           const shape = drawShape(item, box, theme);
@@ -619,13 +763,35 @@ export function renderSheet(pkg: XlsxPackage, sheet: SheetInfo, opts: RenderOpti
     el,
     width,
     height,
-    margins: { left: inch('left', 0.7), right: inch('right', 0.7), top: inch('top', 0.75), bottom: inch('bottom', 0.75) },
+    margins: {
+      left: inch('left', 0.7),
+      right: inch('right', 0.7),
+      top: inch('top', 0.75),
+      bottom: inch('bottom', 0.75),
+    },
     centered: po?.getAttribute('horizontalCentered') === '1',
   };
 }
 
 // ───────── 도형 (DrawingML) ─────────
-const SCHEME: Record<string, number> = { lt1: 0, bg1: 0, dk1: 1, tx1: 1, lt2: 2, bg2: 2, dk2: 3, tx2: 3, accent1: 4, accent2: 5, accent3: 6, accent4: 7, accent5: 8, accent6: 9, hlink: 10, folHlink: 11 };
+const SCHEME: Record<string, number> = {
+  lt1: 0,
+  bg1: 0,
+  dk1: 1,
+  tx1: 1,
+  lt2: 2,
+  bg2: 2,
+  dk2: 3,
+  tx2: 3,
+  accent1: 4,
+  accent2: 5,
+  accent3: 6,
+  accent4: 7,
+  accent5: 8,
+  accent6: 9,
+  hlink: 10,
+  folHlink: 11,
+};
 
 function rgbToHsl(hex: string): [number, number, number] {
   const r = parseInt(hex.slice(0, 2), 16) / 255;
@@ -659,7 +825,10 @@ function hslToHex(h: number, s: number, l: number): string {
     g = hue(p, q, h);
     b = hue(p, q, h - 1 / 3);
   }
-  const x = (v: number) => Math.round(Math.min(1, Math.max(0, v)) * 255).toString(16).padStart(2, '0');
+  const x = (v: number) =>
+    Math.round(Math.min(1, Math.max(0, v)) * 255)
+      .toString(16)
+      .padStart(2, '0');
   return `${x(r)}${x(g)}${x(b)}`;
 }
 
@@ -670,13 +839,28 @@ function drawingColor(el: Element | null | undefined, theme: string[]): string |
   if (el.localName === 'srgbClr') hex = el.getAttribute('val');
   else if (el.localName === 'schemeClr') hex = theme[SCHEME[el.getAttribute('val') ?? ''] ?? -1] ?? null;
   else if (el.localName === 'sysClr') hex = el.getAttribute('lastClr') ?? (el.getAttribute('val') === 'window' ? 'FFFFFF' : '000000');
-  else if (el.localName === 'prstClr') hex = ({ black: '000000', white: 'FFFFFF', red: 'FF0000', blue: '0000FF' } as Record<string, string>)[el.getAttribute('val') ?? ''] ?? null;
+  else if (el.localName === 'prstClr')
+    hex =
+      (
+        {
+          black: '000000',
+          white: 'FFFFFF',
+          red: 'FF0000',
+          blue: '0000FF',
+        } as Record<string, string>
+      )[el.getAttribute('val') ?? ''] ?? null;
   if (!hex) return null;
   for (const m of Array.from(el.children)) {
     const v = Number(m.getAttribute('val') ?? 100000) / 100000;
     if (m.localName === 'shade' || m.localName === 'tint') {
       const ch = [0, 2, 4].map((i) => parseInt(hex!.slice(i, i + 2), 16));
-      hex = ch.map((c) => Math.round(m.localName === 'shade' ? c * v : c + (255 - c) * (1 - v)).toString(16).padStart(2, '0')).join('');
+      hex = ch
+        .map((c) =>
+          Math.round(m.localName === 'shade' ? c * v : c + (255 - c) * (1 - v))
+            .toString(16)
+            .padStart(2, '0'),
+        )
+        .join('');
     } else if (m.localName === 'lumMod' || m.localName === 'lumOff') {
       const [h, s, l] = rgbToHsl(hex);
       hex = hslToHex(h, s, m.localName === 'lumMod' ? l * v : l + v);
@@ -715,19 +899,36 @@ function drawShape(item: Element, box: { x: number; y: number; w: number; h: num
     const h = Math.max(box.h, 1);
     svg.setAttribute('width', String(w + pad * 2));
     svg.setAttribute('height', String(h + pad * 2));
-    Object.assign((svg as unknown as HTMLElement).style, { position: 'absolute', left: `${box.x - pad}px`, top: `${box.y - pad}px`, overflow: 'visible' });
+    Object.assign((svg as unknown as HTMLElement).style, {
+      position: 'absolute',
+      left: `${box.x - pad}px`,
+      top: `${box.y - pad}px`,
+      overflow: 'visible',
+    });
     const x1 = pad + (flipH ? box.w : 0);
     const x2 = pad + (flipH ? 0 : box.w);
     const y1 = pad + (flipV ? box.h : 0);
     const y2 = pad + (flipV ? 0 : box.h);
     const line = document.createElementNS(svgNS, 'line');
-    for (const [k, v] of Object.entries({ x1, y1, x2, y2, stroke: lineColor, 'stroke-width': lineW })) line.setAttribute(k, String(v));
+    for (const [k, v] of Object.entries({
+      x1,
+      y1,
+      x2,
+      y2,
+      stroke: lineColor,
+      'stroke-width': lineW,
+    }))
+      line.setAttribute(k, String(v));
     svg.appendChild(line);
     const tail = first(ln, 'tailEnd')?.getAttribute('type');
     if (tail && tail !== 'none') {
       const ang = Math.atan2(y2 - y1, x2 - x1);
       const len = 4 + lineW * 3;
-      const pts = [[x2, y2], [x2 - len * Math.cos(ang - 0.45), y2 - len * Math.sin(ang - 0.45)], [x2 - len * Math.cos(ang + 0.45), y2 - len * Math.sin(ang + 0.45)]];
+      const pts = [
+        [x2, y2],
+        [x2 - len * Math.cos(ang - 0.45), y2 - len * Math.sin(ang - 0.45)],
+        [x2 - len * Math.cos(ang + 0.45), y2 - len * Math.sin(ang + 0.45)],
+      ];
       const head = document.createElementNS(svgNS, 'polygon');
       head.setAttribute('points', pts.map((p) => p.join(',')).join(' '));
       head.setAttribute('fill', lineColor);
@@ -768,7 +969,12 @@ function drawShape(item: Element, box: { x: number; y: number; w: number; h: num
     for (const p of kids(tx, 'p')) {
       const para = document.createElement('div');
       const algn = first(p, 'pPr')?.getAttribute('algn') ?? 'l';
-      Object.assign(para.style, { textAlign: algn === 'ctr' ? 'center' : algn === 'r' ? 'right' : algn === 'just' ? 'justify' : 'left', whiteSpace: 'pre-wrap', lineHeight: '1.2', wordBreak: 'keep-all' });
+      Object.assign(para.style, {
+        textAlign: algn === 'ctr' ? 'center' : algn === 'r' ? 'right' : algn === 'just' ? 'justify' : 'left',
+        whiteSpace: 'pre-wrap',
+        lineHeight: '1.2',
+        wordBreak: 'keep-all',
+      });
       let any = false;
       for (const r of Array.from(p.children)) {
         if (r.localName === 'br') {
@@ -808,7 +1014,13 @@ export const A4 = { width: 794, height: 1123 };
 export function a4Page(sheet: RenderedSheet, footnote?: string): HTMLDivElement {
   const page = document.createElement('div');
   page.className = 'xlsx-page';
-  Object.assign(page.style, { position: 'relative', width: `${A4.width}px`, height: `${A4.height}px`, background: '#ffffff', overflow: 'hidden' });
+  Object.assign(page.style, {
+    position: 'relative',
+    width: `${A4.width}px`,
+    height: `${A4.height}px`,
+    background: '#ffffff',
+    overflow: 'hidden',
+  });
   const { left, right, top, bottom } = sheet.margins;
   // 여백이 0인 양식도 있어 최소 여백 12px 은 둡니다 (프린터 인쇄 불가 영역)
   const ml = Math.max(left, 12);
@@ -818,13 +1030,27 @@ export function a4Page(sheet: RenderedSheet, footnote?: string): HTMLDivElement 
   const scale = Math.min((A4.width - ml - mr) / sheet.width, (A4.height - mt - mb) / sheet.height);
   const w = sheet.width * scale;
   const holder = document.createElement('div');
-  Object.assign(holder.style, { position: 'absolute', top: `${mt}px`, left: `${Math.max(ml, (A4.width - w) / 2)}px`, transformOrigin: '0 0', transform: `scale(${scale})` });
+  Object.assign(holder.style, {
+    position: 'absolute',
+    top: `${mt}px`,
+    left: `${Math.max(ml, (A4.width - w) / 2)}px`,
+    transformOrigin: '0 0',
+    transform: `scale(${scale})`,
+  });
   holder.appendChild(sheet.el);
   page.appendChild(holder);
   if (footnote) {
     const f = document.createElement('div');
     f.textContent = footnote;
-    Object.assign(f.style, { position: 'absolute', left: '0', right: '0', bottom: '8px', textAlign: 'center', font: "9px 'Malgun Gothic', 'Noto Sans KR', sans-serif", color: '#8a8478' });
+    Object.assign(f.style, {
+      position: 'absolute',
+      left: '0',
+      right: '0',
+      bottom: '8px',
+      textAlign: 'center',
+      font: "9px 'Malgun Gothic', 'Noto Sans KR', sans-serif",
+      color: '#8a8478',
+    });
     page.appendChild(f);
   }
   return page;

@@ -53,7 +53,9 @@ export const CONTRACT_TEMPLATES: ContractTemplate[] = [
       f('address', '주소', '주최자', 'L8'),
       f('address2', '주소 (둘째 줄)', '주최자', 'L9'),
       f('deposit', '계약금', '계약금', 'C9'),
-      f('depositMemo', '입금 메모', '계약금', 'G9', { hint: '예) 10/24 김민지' }),
+      f('depositMemo', '입금 메모', '계약금', 'G9', {
+        hint: '예) 10/24 김민지',
+      }),
       f('packagePrice', '돌상패키지 금액', '품목', 'F13'),
       f('vendorSnap', '협력업체 · 스냅 촬영', '품목', 'J13'),
       f('vendorHair', '협력업체 · Hair & Make-up', '품목', 'J14'),
@@ -66,7 +68,10 @@ export const CONTRACT_TEMPLATES: ContractTemplate[] = [
       f('contractMonth', '계약일 · 월', '계약', 'F34'),
       f('contractDay', '계약일 · 일', '계약', 'H34'),
       f('manager', '담당자', '계약', 'C35'),
-      back('rulesDeposit', '규정면 계약금', 'B7', { replaceAmount: true, hint: '규정 1항의 계약금 금액' }),
+      back('rulesDeposit', '규정면 계약금', 'B7', {
+        replaceAmount: true,
+        hint: '규정 1항의 계약금 금액',
+      }),
       back('rulesCustomer', '규정면 고객님', 'D19'),
       back('rulesManager', '규정면 담당자', 'H19'),
     ],
@@ -89,9 +94,13 @@ export const CONTRACT_TEMPLATES: ContractTemplate[] = [
       f('address', '주소', '주최자', 'L6'),
       f('address2', '주소 (둘째 줄)', '주최자', 'L7'),
       f('deposit', '계약금', '계약금', 'D7', { kind: 'number' }),
-      f('depositMemo', '입금 메모', '계약금', 'G7', { hint: '예) 10/24 김민지' }),
+      f('depositMemo', '입금 메모', '계약금', 'G7', {
+        hint: '예) 10/24 김민지',
+      }),
       f('itemRental', '홀대관료', '품목', 'C10', { kind: 'number' }),
-      f('itemRentalNote', '홀대관료 비고', '품목', 'E10', { kind: 'multiline' }),
+      f('itemRentalNote', '홀대관료 비고', '품목', 'E10', {
+        kind: 'multiline',
+      }),
       f('itemTable', '생신상(기본)', '품목', 'C11', { kind: 'number' }),
       f('itemTableNote', '생신상 비고', '품목', 'E11'),
       f('itemFruit', '떡·과일 (생물)', '품목', 'C12', { kind: 'number' }),
@@ -109,7 +118,10 @@ export const CONTRACT_TEMPLATES: ContractTemplate[] = [
       f('buffetChild', '뷔페 소인', '뷔페', 'E22', { kind: 'multiline' }),
       f('contractDate', '계약일', '계약', 'C33'),
       f('manager', '담당자', '계약', 'C34'),
-      back('rulesDeposit', '규정면 계약금', 'B7', { replaceAmount: true, hint: '규정 1항의 계약금 금액' }),
+      back('rulesDeposit', '규정면 계약금', 'B7', {
+        replaceAmount: true,
+        hint: '규정 1항의 계약금 금액',
+      }),
       back('rulesCustomer', '규정면 고객님', 'C20'),
       back('rulesManager', '규정면 담당자', 'G20'),
     ],
@@ -133,10 +145,20 @@ export const CONTRACT_TEMPLATES: ContractTemplate[] = [
       f('host2En', '신부 영문명', '주최자', 'C9'),
       f('address', '주소', '주최자', 'N8'),
       f('deposit', '계약금', '계약금', 'D10', { kind: 'number' }),
-      f('depositMemo', '입금 메모', '계약금', 'H10', { hint: '예) 10/17 박미영님' }),
-      f('itemPackage', '웨딩패키지 PRICE', '품목', 'D14', { kind: 'number', vatCell: 'G14', totalCell: 'I14' }),
+      f('depositMemo', '입금 메모', '계약금', 'H10', {
+        hint: '예) 10/17 박미영님',
+      }),
+      f('itemPackage', '웨딩패키지 PRICE', '품목', 'D14', {
+        kind: 'number',
+        vatCell: 'G14',
+        totalCell: 'I14',
+      }),
       f('itemFlower', '생화장식', '품목', 'D15'),
-      f('itemMc', '웨딩전문사회자 PRICE', '품목', 'D16', { kind: 'number', vatCell: 'G16', totalCell: 'I16' }),
+      f('itemMc', '웨딩전문사회자 PRICE', '품목', 'D16', {
+        kind: 'number',
+        vatCell: 'G16',
+        totalCell: 'I16',
+      }),
       f('itemBouquet', '생화부케 PRICE', '품목', 'D17', { kind: 'number' }),
       f('itemBanner', '포토배너 PRICE', '품목', 'D18', { kind: 'number' }),
       f('itemCake', '케잌 & 와인 PRICE', '품목', 'D19', { kind: 'number' }),
@@ -148,7 +170,10 @@ export const CONTRACT_TEMPLATES: ContractTemplate[] = [
       f('contractDay', '계약일 · 일', '계약', 'I40'),
       f('contractWeekday', '계약일 · 요일', '계약', 'L40'),
       f('manager', '담당자', '계약', 'C41'),
-      back('rulesDeposit', '규정면 계약금', 'B6', { replaceAmount: true, hint: '규정 1항의 계약금 금액' }),
+      back('rulesDeposit', '규정면 계약금', 'B6', {
+        replaceAmount: true,
+        hint: '규정 1항의 계약금 금액',
+      }),
       back('rulesCustomer', '규정면 고객님', 'C19'),
       back('rulesManager', '규정면 담당자', 'G19'),
     ],
@@ -173,7 +198,9 @@ export const CONTRACT_TEMPLATES: ContractTemplate[] = [
       f('deposit', '계약금', '계약금', 'D8', { kind: 'number' }),
       f('depositMemo', '입금 메모', '계약금', 'H8'),
       f('itemRental', '대관료 (정가)', '품목', 'C12', { kind: 'number' }),
-      f('itemRentalActual', '대관료 (적용가)', '품목', 'E12', { kind: 'number' }),
+      f('itemRentalActual', '대관료 (적용가)', '품목', 'E12', {
+        kind: 'number',
+      }),
       f('itemRecreation', '레크레이션', '품목', 'C13'),
       f('itemBand1', '밴드 1인조', '품목', 'C14', { kind: 'number' }),
       f('itemBand2', '밴드 2인조', '품목', 'C15', { kind: 'number' }),
@@ -190,7 +217,10 @@ export const CONTRACT_TEMPLATES: ContractTemplate[] = [
       f('contractDay', '계약일 · 일', '계약', 'I37'),
       f('contractWeekday', '계약일 · 요일', '계약', 'L37'),
       f('manager', '담당자', '계약', 'C38'),
-      back('rulesDeposit', '규정면 계약금', 'B7', { replaceAmount: true, hint: '규정 1항의 계약금 금액' }),
+      back('rulesDeposit', '규정면 계약금', 'B7', {
+        replaceAmount: true,
+        hint: '규정 1항의 계약금 금액',
+      }),
       back('rulesCustomer', '규정면 고객님', 'C20'),
       back('rulesManager', '규정면 담당자', 'G20'),
     ],
@@ -288,7 +318,12 @@ export function contractAutoValues(id: ContractTemplateId, b: Booking, opts: { m
 export function contractDiff(id: ContractTemplateId, before: Record<string, string>, after: Record<string, string>): ContractChange['items'] {
   return contractTemplate(id)
     .fields.filter((x) => (before[x.key] ?? '').trim() !== (after[x.key] ?? '').trim())
-    .map((x) => ({ key: x.key, label: x.label, before: before[x.key] ?? '', after: after[x.key] ?? '' }));
+    .map((x) => ({
+      key: x.key,
+      label: x.label,
+      before: before[x.key] ?? '',
+      after: after[x.key] ?? '',
+    }));
 }
 
 export function latestContract(b: Booking): ContractVersion | undefined {
@@ -296,4 +331,10 @@ export function latestContract(b: Booking): ContractVersion | undefined {
   return v?.length ? v[v.length - 1] : undefined;
 }
 
-export const CHANNEL_LABEL: Record<ContractChange['channel'], string> = { phone: '전화', kakao: '카톡', sms: '문자', email: '메일', visit: '방문' };
+export const CHANNEL_LABEL: Record<ContractChange['channel'], string> = {
+  phone: '전화',
+  kakao: '카톡',
+  sms: '문자',
+  email: '메일',
+  visit: '방문',
+};

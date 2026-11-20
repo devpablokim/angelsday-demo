@@ -1,17 +1,19 @@
 import { ddayLabel, formatDate, todayKST, won } from '@shared/dates';
-import { EVENT_TYPE_LIST, EVENT_TYPES, eventConfig, honoreeLabel } from '@shared/eventTypes';
+import { EVENT_TYPES, eventConfig, honoreeLabel } from '@shared/eventTypes';
 import * as ops from '@shared/ops';
 import { expectedRevenue } from '@shared/quote';
 import { computeStep, daysInStep, STEPS } from '@shared/steps';
 import type { Booking, EventType, HallId, Requirements, StepNo } from '@shared/types';
 import { HALLS, hallName, TIME_SLOTS } from '@shared/venue';
-import { useMemo, useState, type FormEvent } from 'react';
+import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import { Link, useNavigate } from 'react-router';
 import { FieldInput } from '../../components/FieldInput';
 import { Icon } from '../../components/Icon';
 import { Counter, Empty, EventBadge, PageLoading, Sheet, useToast } from '../../components/ui';
-import { useBookings, useCatalog, useStore, useToday } from '../../data/hooks';
+import { useCatalog, useStore, useToday } from '../../data/hooks';
 import { errorMessage, lastActivity } from './adminUtils';
+import { unitInfo } from '@shared/units';
+import { UnitSwitch, UnitTag, useAdminUnit, useUnitBookings } from './unit';
 
 export function StepMini({ step, cancelled, days }: { step: StepNo; cancelled?: boolean; days?: number }) {
   if (cancelled) return <span className="badge badge--error">취소</span>;
@@ -33,7 +35,9 @@ export function StepMini({ step, cancelled, days }: { step: StepNo; cancelled?: 
 type StepFilter = 'all' | StepNo | 'cancelled';
 
 export function BookingsPage() {
-  const bookings = useBookings();
+  const bookings = useUnitBookings();
+  const { unit } = useAdminUnit();
+  const unitTypes = unitInfo(unit).eventTypes;
   const catalog = useCatalog();
   const today = useToday();
   const [q, setQ] = useState('');
@@ -42,12 +46,20 @@ export function BookingsPage() {
   const [sort, setSort] = useState<'date' | 'recent'>('date');
   const [showPast, setShowPast] = useState(true);
   const [newOpen, setNewOpen] = useState(false);
+  // 사업부를 바꾸면 그 사업부에 없는 행사 종류 필터는 풀어 줍니다
+  useEffect(() => {
+    if (type !== 'all' && !unitTypes.includes(type)) setType('all');
+  }, [unit, type, unitTypes]);
 
   const rows = useMemo(() => {
     if (!bookings) return [];
     const needle = q.trim().toLowerCase();
     return bookings
-      .map((b) => ({ b, step: computeStep(b, today), rev: expectedRevenue(b, catalog) }))
+      .map((b) => ({
+        b,
+        step: computeStep(b, today),
+        rev: expectedRevenue(b, catalog),
+      }))
       .filter(({ b, step: s }) => {
         if (step === 'cancelled') {
           if (!b.cancelledAt) return false;
@@ -69,10 +81,13 @@ export function BookingsPage() {
 
   return (
     <div className="admin-page">
+      <UnitSwitch variant="tabs" />
       <div className="admin-page__head">
         <div>
           <div className="overline">CUSTOMERS</div>
-          <h1 className="display-md">고객 관리</h1>
+          <h1 className="display-md">
+            고객 관리 <UnitTag />
+          </h1>
           <p className="caption">
             {rows.length}건 · 예상 매출 합계 {won(totalRev)}
           </p>
@@ -89,7 +104,7 @@ export function BookingsPage() {
         </label>
         <select className="select select--sm" value={type} onChange={(e) => setType(e.target.value as EventType | 'all')} aria-label="행사 종류">
           <option value="all">전체 행사</option>
-          {EVENT_TYPE_LIST.map((t) => (
+          {unitTypes.map((t) => (
             <option key={t} value={t}>
               {EVENT_TYPES[t].label}
             </option>
@@ -142,7 +157,11 @@ export function BookingsPage() {
                         <span className="caption">
                           {b.customer.name} · {b.customer.phone}
                           {b.accessCode && <span className="code-text"> · {b.accessCode}</span>}
-                          {b.source !== 'web' && <span className="badge badge--outline" style={{ marginLeft: 6 }}>{b.source === 'phone' ? '전화' : b.source}</span>}
+                          {b.source !== 'web' && (
+                            <span className="badge badge--outline" style={{ marginLeft: 6 }}>
+                              {b.source === 'phone' ? '전화' : b.source}
+                            </span>
+                          )}
                         </span>
                       </Link>
                     </td>
@@ -216,7 +235,9 @@ function NewBookingSheet({ open, onClose }: { open: boolean; onClose: () => void
   const store = useStore();
   const toast = useToast();
   const nav = useNavigate();
-  const [eventType, setEventType] = useState<EventType>('wedding');
+  const { unit } = useAdminUnit();
+  const unitTypes = unitInfo(unit).eventTypes;
+  const [eventType, setEventType] = useState<EventType>(unitTypes[0]);
   const [date, setDate] = useState(todayKST());
   const [time, setTime] = useState(TIME_SLOTS[1].time);
   const [hallId, setHallId] = useState<HallId>('lovely');
@@ -235,8 +256,21 @@ function NewBookingSheet({ open, onClose }: { open: boolean; onClose: () => void
     if (missing.length) return toast(`${missing.map((f) => f.label).join(', ')}을(를) 입력해 주세요.`, 'error');
     setBusy(true);
     try {
-      const values: Requirements = { ...Object.fromEntries(cfg.honoreeFields.filter((f) => f.defaultValue !== undefined).map((f) => [f.key, f.defaultValue!])), ...hv };
-      let b = ops.createBooking({ eventType, date, time, hallId: cfg.usesHall ? hallId : undefined, guests, customer, honoreeValues: values, memo, source });
+      const values: Requirements = {
+        ...Object.fromEntries(cfg.honoreeFields.filter((f) => f.defaultValue !== undefined).map((f) => [f.key, f.defaultValue!])),
+        ...hv,
+      };
+      let b = ops.createBooking({
+        eventType,
+        date,
+        time,
+        hallId: cfg.usesHall ? hallId : undefined,
+        guests,
+        customer,
+        honoreeValues: values,
+        memo,
+        source,
+      });
       b = ops.log(b, 'admin', 'note', `관리자가 ${source === 'phone' ? '전화' : source === 'kakao' ? '카카오톡' : '방문'} 문의를 등록했어요`, true);
       await store.createBooking(b);
       toast('예약 문의를 등록했어요.');
@@ -255,7 +289,7 @@ function NewBookingSheet({ open, onClose }: { open: boolean; onClose: () => void
         <div className="field">
           <span className="field__label">행사 종류</span>
           <div className="row wrap gap-8">
-            {EVENT_TYPE_LIST.map((t) => (
+            {unitTypes.map((t) => (
               <button type="button" key={t} className="chip chip--sm" aria-pressed={eventType === t} onClick={() => setEventType(t)}>
                 {EVENT_TYPES[t].label}
               </button>

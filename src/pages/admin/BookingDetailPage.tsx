@@ -2,13 +2,16 @@ import { ddayLabel, formatDate } from '@shared/dates';
 import { headlinePlain } from '@shared/eventTypes';
 import { computeStep, STEPS } from '@shared/steps';
 import type { Booking } from '@shared/types';
+import { unitOf } from '@shared/units';
 import { hallName } from '@shared/venue';
+import { useEffect } from 'react';
 import { Link, useParams, useSearchParams } from 'react-router';
 import { Icon } from '../../components/Icon';
 import { JourneyStepper } from '../../components/Journey';
 import { copyText, Empty, EventBadge, PageLoading, useToast } from '../../components/ui';
 import { useBooking, useToday } from '../../data/hooks';
 import { customerUrl } from '../../data/store';
+import { useAdminUnit } from './unit';
 import { ChecklistTab } from './detail/ChecklistTab';
 import { ContractTab } from './detail/ContractTab';
 import { EmailsTab } from './detail/EmailsTab';
@@ -56,6 +59,12 @@ export function BookingDetailPage() {
   const toast = useToast();
   const [params, setParams] = useSearchParams();
   const tab = (TABS.find((t) => t.id === params.get('tab'))?.id ?? 'overview') as TabId;
+  // 다른 사업부 고객을 열면 사이드바 사업부도 그 고객 쪽으로 맞춥니다
+  const { unit, setUnit } = useAdminUnit();
+  const bookingUnit = booking ? unitOf(booking) : null;
+  useEffect(() => {
+    if (bookingUnit && bookingUnit !== unit) setUnit(bookingUnit);
+  }, [bookingUnit, unit, setUnit]);
 
   if (booking === undefined) return <PageLoading />;
   if (!booking)
@@ -86,8 +95,25 @@ export function BookingDetailPage() {
         <div className="detail-head__main">
           <div className="row gap-8 wrap">
             <EventBadge type={b.eventType} />
-            {b.cancelledAt ? <span className="badge badge--error">취소된 예약</span> : <span className="step-chip">STEP {step} · {STEPS[step - 1].title}</span>}
-            {b.source !== 'web' && <span className="badge badge--outline">{{ phone: '전화 문의', kakao: '카카오톡 문의', walkin: '방문 문의', web: '' }[b.source]}</span>}
+            {b.cancelledAt ? (
+              <span className="badge badge--error">취소된 예약</span>
+            ) : (
+              <span className="step-chip">
+                STEP {step} · {STEPS[step - 1].title}
+              </span>
+            )}
+            {b.source !== 'web' && (
+              <span className="badge badge--outline">
+                {
+                  {
+                    phone: '전화 문의',
+                    kakao: '카카오톡 문의',
+                    walkin: '방문 문의',
+                    web: '',
+                  }[b.source]
+                }
+              </span>
+            )}
           </div>
           <h1 className="detail-head__title">{headlinePlain(b.eventType, b.honorees).replace(/까지$/, '')}</h1>
           <p className="detail-head__meta">

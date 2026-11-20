@@ -16,7 +16,23 @@ export function contractFileBase(b: Booking, templateId: ContractTemplateId, ver
 }
 
 /** 엑셀(원본 양식) · A4 PDF 내려받기 버튼 */
-export function ContractDownloads({ booking: b, templateId, values, version, footnote, size = 'md', only }: { booking: Booking; templateId: ContractTemplateId; values: Record<string, string>; version?: number; footnote?: string; size?: 'sm' | 'md'; only?: 'pdf' | 'xlsx' }) {
+export function ContractDownloads({
+  booking: b,
+  templateId,
+  values,
+  version,
+  footnote,
+  size = 'md',
+  only,
+}: {
+  booking: Booking;
+  templateId: ContractTemplateId;
+  values: Record<string, string>;
+  version?: number;
+  footnote?: string;
+  size?: 'sm' | 'md';
+  only?: 'pdf' | 'xlsx';
+}) {
   const toast = useToast();
   const [busy, setBusy] = useState<'' | 'xlsx' | 'pdf'>('');
   const base = contractFileBase(b, templateId, version);
@@ -90,7 +106,9 @@ export const ContractHistoryDocument = forwardRef<HTMLDivElement, { booking: Boo
         <tbody>
           {c?.versions.map((v) => (
             <tr key={v.version}>
-              <td>v{v.version} · {contractTemplate(v.templateId).label}</td>
+              <td>
+                v{v.version} · {contractTemplate(v.templateId).label}
+              </td>
               <td>{formatDateTime(v.issuedAt)}</td>
               <td>{v.issuedBy}</td>
               <td>{v.confirmedAt ? formatDateTime(v.confirmedAt) : '확인 전'}</td>

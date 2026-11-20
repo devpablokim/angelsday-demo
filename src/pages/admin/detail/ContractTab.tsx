@@ -39,7 +39,13 @@ export function ContractTab({ booking: b }: { booking: Booking }) {
       .then((d) => {
         if (!alive) return;
         setDefaults(d);
-        const base = latest && latest.templateId === templateId ? latest.values : contractAutoValues(templateId, b, { manager: b.manager?.name || staff, today: todayKST() });
+        const base =
+          latest && latest.templateId === templateId
+            ? latest.values
+            : contractAutoValues(templateId, b, {
+                manager: b.manager?.name || staff,
+                today: todayKST(),
+              });
         setValues({ ...d, ...base });
       })
       .catch((e) => toast(errorMessage(e), 'error'));
@@ -56,7 +62,10 @@ export function ContractTab({ booking: b }: { booking: Booking }) {
   const dirty = !latest || latest.templateId !== templateId || changed.length > 0;
 
   function refill() {
-    const auto = contractAutoValues(templateId, b, { manager: b.manager?.name || staff, today: todayKST() });
+    const auto = contractAutoValues(templateId, b, {
+      manager: b.manager?.name || staff,
+      today: todayKST(),
+    });
     setValues((v) => ({ ...v, ...auto }));
     toast('예약 정보(일시·홀·인원·연락처·계약금)로 다시 채웠어요.');
   }
@@ -105,7 +114,11 @@ export function ContractTab({ booking: b }: { booking: Booking }) {
               <Icon name="refresh" size={16} /> 예약 정보로 다시 채우기
             </button>
           </div>
-          {changed.length > 0 && <p className="callout callout--neutral mt-12 body-sm">v{latest!.version}와 달라진 칸 {changed.length}개는 노란색으로 표시돼요.</p>}
+          {changed.length > 0 && (
+            <p className="callout callout--neutral mt-12 body-sm">
+              v{latest!.version}와 달라진 칸 {changed.length}개는 노란색으로 표시돼요.
+            </p>
+          )}
           {CONTRACT_GROUPS.map((g) => {
             const fields = tpl.fields.filter((x) => x.group === g);
             if (!fields.length) return null;
@@ -123,7 +136,10 @@ export function ContractTab({ booking: b }: { booking: Booking }) {
                     return (
                       <label key={x.key} className={`field${isChanged ? ' is-changed' : ''}`}>
                         <span className="field__label">
-                          {x.label} <span className="caption">{x.sheet === 1 ? '뒷면' : ''} {x.cell}</span>
+                          {x.label}{' '}
+                          <span className="caption">
+                            {x.sheet === 1 ? '뒷면' : ''} {x.cell}
+                          </span>
                         </span>
                         {x.kind === 'multiline' ? <textarea rows={2} {...props} /> : <input inputMode={x.kind === 'number' ? 'numeric' : undefined} {...props} />}
                         {isChanged && <span className="caption">이전: {previous?.[x.key] || '(비어 있음)'}</span>}
@@ -180,7 +196,25 @@ export function ContractTab({ booking: b }: { booking: Booking }) {
 
 const CHANNELS: ChangeChannel[] = ['phone', 'kakao', 'sms', 'email', 'visit'];
 
-function IssueSheet({ open, onClose, booking: b, staff, changed, isFirst, templateChanged, onIssue }: { open: boolean; onClose: () => void; booking: Booking; staff: string; changed: ContractChange['items']; isFirst: boolean; templateChanged: boolean; onIssue: (change?: ops.ContractChangeInput) => Promise<void> }) {
+function IssueSheet({
+  open,
+  onClose,
+  booking: b,
+  staff,
+  changed,
+  isFirst,
+  templateChanged,
+  onIssue,
+}: {
+  open: boolean;
+  onClose: () => void;
+  booking: Booking;
+  staff: string;
+  changed: ContractChange['items'];
+  isFirst: boolean;
+  templateChanged: boolean;
+  onIssue: (change?: ops.ContractChangeInput) => Promise<void>;
+}) {
   const [requester, setRequester] = useState(`${b.customer.name} ${b.customer.phone}`);
   const [channel, setChannel] = useState<ChangeChannel>('phone');
   const [staffName, setStaffName] = useState(staff);
@@ -192,7 +226,18 @@ function IssueSheet({ open, onClose, booking: b, staff, changed, isFirst, templa
   async function submit() {
     setBusy(true);
     try {
-      await onIssue(isFirst ? undefined : { requester: requester.trim(), channel, staff: staffName.trim(), amountDelta: delta, settlement: delta > 0 ? 'extra' : delta < 0 ? 'refund' : 'none', memo: memo.trim() });
+      await onIssue(
+        isFirst
+          ? undefined
+          : {
+              requester: requester.trim(),
+              channel,
+              staff: staffName.trim(),
+              amountDelta: delta,
+              settlement: delta > 0 ? 'extra' : delta < 0 ? 'refund' : 'none',
+              memo: memo.trim(),
+            },
+      );
     } finally {
       setBusy(false);
     }
@@ -211,9 +256,7 @@ function IssueSheet({ open, onClose, booking: b, staff, changed, isFirst, templa
       }
     >
       {isFirst ? (
-        <p className="body-sm">
-          미리보기에서 행사일·장소·인원·계약금·담당자를 한 번 더 확인해 주세요. 발행하면 고객 페이지에 공개되고 ‘계약서가 준비되었어요’ 메일이 나가요.
-        </p>
+        <p className="body-sm">미리보기에서 행사일·장소·인원·계약금·담당자를 한 번 더 확인해 주세요. 발행하면 고객 페이지에 공개되고 ‘계약서가 준비되었어요’ 메일이 나가요.</p>
       ) : (
         <div className="stack gap-12">
           <div>
@@ -287,13 +330,21 @@ function ContractHistory({ booking: b }: { booking: Booking }) {
                   <div className="caption">{v.confirmedAt ? `고객 확인 ${formatDateTime(v.confirmedAt)}` : '고객 확인 전'}</div>
                 </div>
                 <div className="row wrap gap-8">
-                  <ContractDownloads booking={b} templateId={v.templateId} values={v.values} version={v.version} size="sm" footnote={`${contractTemplate(v.templateId).label} v${v.version} · ${formatDateTime(v.issuedAt)} 발행`} />
+                  <ContractDownloads
+                    booking={b}
+                    templateId={v.templateId}
+                    values={v.values}
+                    version={v.version}
+                    size="sm"
+                    footnote={`${contractTemplate(v.templateId).label} v${v.version} · ${formatDateTime(v.issuedAt)} 발행`}
+                  />
                 </div>
               </div>
               {ch && (
                 <div className="contract-version__change">
                   <div className="caption">
-                    {formatDateTime(ch.at)} · 요청 {ch.requester} ({CHANNEL_LABEL[ch.channel]}) · 접수 {ch.staff} · {ch.amountDelta ? `${ch.amountDelta > 0 ? '추가금' : '환불'} ${won(Math.abs(ch.amountDelta))}` : '금액 변동 없음'}
+                    {formatDateTime(ch.at)} · 요청 {ch.requester} ({CHANNEL_LABEL[ch.channel]}) · 접수 {ch.staff} ·{' '}
+                    {ch.amountDelta ? `${ch.amountDelta > 0 ? '추가금' : '환불'} ${won(Math.abs(ch.amountDelta))}` : '금액 변동 없음'}
                   </div>
                   <ul className="contract-changes">
                     {ch.items.map((i) => (

@@ -23,7 +23,10 @@ export function ContractPreview({ templateId, values, highlight, footnote }: { t
       try {
         pkg = await buildContract(templateId, JSON.parse(key) as Record<string, string>);
         if (!alive || !host.current) return;
-        const pages = contractPages(pkg, { highlight: hl ? cellsOf(templateId, hl.split(',')) : undefined, footnote });
+        const pages = contractPages(pkg, {
+          highlight: hl ? cellsOf(templateId, hl.split(',')) : undefined,
+          footnote,
+        });
         host.current.replaceChildren(
           ...pages.map((p) => {
             const frame = document.createElement('div');

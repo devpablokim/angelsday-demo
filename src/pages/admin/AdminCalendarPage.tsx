@@ -7,8 +7,10 @@ import { Link } from 'react-router';
 import { Icon } from '../../components/Icon';
 import { MonthCalendar } from '../../components/MonthCalendar';
 import { EventBadge, PageLoading, Sheet, StatusPill, useToast } from '../../components/ui';
-import { useAdminCalendar, useBookings, useStore, useToday } from '../../data/hooks';
+import { useAdminCalendar, useStore, useToday } from '../../data/hooks';
 import { adminEntries, errorMessage } from './adminUtils';
+import { entryInUnit } from '@shared/units';
+import { UnitTag, useAdminUnit, useUnitBookings } from './unit';
 
 type Kind = 'external' | 'blocked' | 'promo';
 
@@ -39,27 +41,43 @@ function toDraft(e: CalendarEntry): Draft {
 }
 
 export function AdminCalendarPage() {
-  const bookings = useBookings();
-  const manual = useAdminCalendar();
+  const bookings = useUnitBookings();
+  const { unit } = useAdminUnit();
+  const isCatering = unit === 'catering';
+  const allManual = useAdminCalendar();
+  const manual = useMemo(() => allManual.filter((e) => entryInUnit(e, unit)), [allManual, unit]);
   const store = useStore();
   const toast = useToast();
   const today = useToday();
-  const [ym, setYm] = useState(() => ({ year: Number(today.slice(0, 4)), month0: Number(today.slice(5, 7)) - 1 }));
+  const [ym, setYm] = useState(() => ({
+    year: Number(today.slice(0, 4)),
+    month0: Number(today.slice(5, 7)) - 1,
+  }));
   const [selected, setSelected] = useState(today);
   const [draft, setDraft] = useState<Draft | null>(null);
   const [hall, setHall] = useState<HallId | 'all'>('all');
 
   const entries = useMemo(() => {
     const all = [...adminEntries(bookings ?? []), ...manual];
-    return hall === 'all' ? all : all.filter((e) => !e.hallId || e.hallId === hall || e.hallId === 'whole' || e.status === 'promo');
-  }, [bookings, manual, hall]);
+    return hall === 'all' || isCatering ? all : all.filter((e) => !e.hallId || e.hallId === hall || e.hallId === 'whole' || e.status === 'promo');
+  }, [bookings, manual, hall, isCatering]);
 
   if (!bookings) return <PageLoading />;
 
   const dayList = entries.filter((e) => e.date === selected).sort((a, z) => (a.time ?? '').localeCompare(z.time ?? ''));
 
   function newDraft(kind: Kind) {
-    setDraft({ kind, status: kind === 'promo' ? 'promo' : kind === 'blocked' ? 'blocked' : 'confirmed', date: selected, time: kind === 'external' ? TIME_SLOTS[1].time : '', hallId: kind === 'external' ? 'lovely' : '', title: kind === 'promo' ? '평일 프로모션' : kind === 'blocked' ? '휴무 · 마감' : '외부 예약', note: '', discountRate: 15 });
+    setDraft({
+      kind,
+      status: kind === 'promo' ? 'promo' : kind === 'blocked' ? 'blocked' : 'confirmed',
+      date: selected,
+      time: kind === 'external' ? TIME_SLOTS[1].time : '',
+      hallId: kind === 'external' ? 'lovely' : '',
+      title: kind === 'promo' ? '평일 프로모션' : kind === 'blocked' ? '휴무 · 마감' : isCatering ? '출장 일정' : '외부 예약',
+      note: '',
+      discountRate: 15,
+      ...(isCatering && kind === 'external' ? { hallId: '' } : {}),
+    });
   }
 
   async function saveDraft() {
@@ -73,6 +91,8 @@ export function AdminCalendarPage() {
       ...(draft.hallId ? { hallId: draft.hallId } : {}),
       ...(draft.note.trim() ? { note: draft.note.trim() } : {}),
       ...(draft.kind === 'promo' ? { discountRate: draft.discountRate } : {}),
+      // 케이터링에서 만든 일정은 케이터링 캘린더에만 보입니다
+      ...(isCatering && draft.kind === 'external' ? { eventType: 'catering' as const } : {}),
     };
     try {
       await store.saveCalendarEntry(e);
@@ -98,32 +118,40 @@ export function AdminCalendarPage() {
       <div className="admin-page__head">
         <div>
           <div className="overline">SCHEDULE</div>
-          <h1 className="display-md">캘린더</h1>
-          <p className="caption">모든 예약(이름 포함)과 수동 일정입니다. 고객용 캘린더에는 행사 종류 · 홀 · 상태만 공개돼요.</p>
+          <h1 className="display-md">
+            캘린더 <UnitTag />
+          </h1>
+          <p className="caption">{isCatering ? '출장 케이터링 행사와 출장 일정입니다.' : '홀 예약(이름 포함)과 수동 일정입니다. 고객용 캘린더에는 행사 종류 · 홀 · 상태만 공개돼요.'}</p>
         </div>
         <div className="row gap-8 wrap">
-          <button className="btn btn--secondary btn--sm" onClick={() => newDraft('promo')}>
-            프로모션일
-          </button>
-          <button className="btn btn--secondary btn--sm" onClick={() => newDraft('blocked')}>
-            휴무 · 마감
-          </button>
+          {!isCatering && (
+            <>
+              <button className="btn btn--secondary btn--sm" onClick={() => newDraft('promo')}>
+                프로모션일
+              </button>
+              <button className="btn btn--secondary btn--sm" onClick={() => newDraft('blocked')}>
+                휴무 · 마감
+              </button>
+            </>
+          )}
           <button className="btn btn--primary btn--sm" onClick={() => newDraft('external')}>
-            <Icon name="plus" size={16} /> 외부 예약
+            <Icon name="plus" size={16} /> {isCatering ? '출장 일정' : '외부 예약'}
           </button>
         </div>
       </div>
 
-      <div className="chip-row mb-16">
-        <button className="chip chip--sm" aria-pressed={hall === 'all'} onClick={() => setHall('all')}>
-          전체 홀
-        </button>
-        {HALLS.map((h) => (
-          <button key={h.id} className="chip chip--sm" aria-pressed={hall === h.id} onClick={() => setHall(h.id)}>
-            {h.name}
+      {!isCatering && (
+        <div className="chip-row mb-16">
+          <button className="chip chip--sm" aria-pressed={hall === 'all'} onClick={() => setHall('all')}>
+            전체 홀
           </button>
-        ))}
-      </div>
+          {HALLS.map((h) => (
+            <button key={h.id} className="chip chip--sm" aria-pressed={hall === h.id} onClick={() => setHall(h.id)}>
+              {h.name}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className="admin-cal">
         <div className="card admin-cal__main">
@@ -201,13 +229,32 @@ export function AdminCalendarPage() {
       >
         {draft && (
           <div className="stack gap-16">
-            <div className="row wrap gap-8">
-              {(['external', 'blocked', 'promo'] as Kind[]).map((k) => (
-                <button key={k} className="chip chip--sm" aria-pressed={draft.kind === k} onClick={() => setDraft({ ...draft, kind: k, status: k === 'external' ? 'confirmed' : k })}>
-                  {{ external: '외부 예약', blocked: '휴무 · 마감', promo: '프로모션일' }[k]}
-                </button>
-              ))}
-            </div>
+            {!isCatering && (
+              <div className="row wrap gap-8">
+                {(['external', 'blocked', 'promo'] as Kind[]).map((k) => (
+                  <button
+                    key={k}
+                    className="chip chip--sm"
+                    aria-pressed={draft.kind === k}
+                    onClick={() =>
+                      setDraft({
+                        ...draft,
+                        kind: k,
+                        status: k === 'external' ? 'confirmed' : k,
+                      })
+                    }
+                  >
+                    {
+                      {
+                        external: '외부 예약',
+                        blocked: '휴무 · 마감',
+                        promo: '프로모션일',
+                      }[k]
+                    }
+                  </button>
+                ))}
+              </div>
+            )}
             {draft.kind === 'external' && (
               <div className="row gap-8">
                 {(['confirmed', 'pending'] as CalendarStatus[]).map((s) => (
@@ -233,10 +280,19 @@ export function AdminCalendarPage() {
                   ))}
                 </select>
               </label>
-              {draft.kind !== 'promo' && (
+              {draft.kind !== 'promo' && !isCatering && (
                 <label className="field">
                   <span className="field__label">홀</span>
-                  <select className="select" value={draft.hallId} onChange={(e) => setDraft({ ...draft, hallId: e.target.value as HallId | '' })}>
+                  <select
+                    className="select"
+                    value={draft.hallId}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        hallId: e.target.value as HallId | '',
+                      })
+                    }
+                  >
                     <option value="">전관 (모든 홀)</option>
                     {HALLS.map((h) => (
                       <option key={h.id} value={h.id}>
@@ -249,7 +305,17 @@ export function AdminCalendarPage() {
               {draft.kind === 'promo' && (
                 <label className="field">
                   <span className="field__label">할인율 (%)</span>
-                  <input className="input" inputMode="numeric" value={draft.discountRate} onChange={(e) => setDraft({ ...draft, discountRate: Math.min(100, Number(e.target.value.replace(/\D/g, '')) || 0) })} />
+                  <input
+                    className="input"
+                    inputMode="numeric"
+                    value={draft.discountRate}
+                    onChange={(e) =>
+                      setDraft({
+                        ...draft,
+                        discountRate: Math.min(100, Number(e.target.value.replace(/\D/g, '')) || 0),
+                      })
+                    }
+                  />
                 </label>
               )}
               <label className="field">

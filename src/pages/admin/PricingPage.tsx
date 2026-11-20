@@ -8,9 +8,12 @@ import { Icon } from '../../components/Icon';
 import { Sheet, useToast } from '../../components/ui';
 import { useCatalog, useStore } from '../../data/hooks';
 import { digitsOnly, errorMessage } from './adminUtils';
+import { itemInUnit, unitInfo } from '@shared/units';
+import { UnitTag, useAdminUnit } from './unit';
 
 export function PricingPage() {
   const saved = useCatalog();
+  const { unit } = useAdminUnit();
   const store = useStore();
   const toast = useToast();
   const [cat, setCat] = useState<Catalog>(saved);
@@ -23,19 +26,38 @@ export function PricingPage() {
 
   const groups = useMemo(() => {
     const order: string[] = [];
-    for (const i of cat.items) if (!order.includes(i.category)) order.push(i.category);
-    return order.map((c) => ({ category: c, items: cat.items.filter((i) => i.category === c) }));
-  }, [cat.items]);
+    // 지금 사업부에서 쓰는 항목만 (두 사업부가 함께 쓰는 항목은 양쪽에 나옵니다)
+    const items = cat.items.filter((i) => itemInUnit(i, unit));
+    for (const i of items) if (!order.includes(i.category)) order.push(i.category);
+    return order.map((c) => ({
+      category: c,
+      items: items.filter((i) => i.category === c),
+    }));
+  }, [cat.items, unit]);
 
   function patch(p: Partial<Catalog>) {
     setCat({ ...cat, ...p });
     setDirty(true);
   }
   function patchItem(key: string, p: Partial<CatalogItem>) {
-    patch({ items: cat.items.map((i) => (i.key === key ? { ...i, ...p } : i)) });
+    patch({
+      items: cat.items.map((i) => (i.key === key ? { ...i, ...p } : i)),
+    });
   }
   function addItem(category: string) {
-    patch({ items: [...cat.items, { key: uid('item'), category, label: '새 항목', price: 0, unit: '식' }] });
+    patch({
+      items: [
+        ...cat.items,
+        {
+          key: uid('item'),
+          category,
+          label: '새 항목',
+          price: 0,
+          unit: '식',
+          eventTypes: unitInfo(unit).eventTypes,
+        },
+      ],
+    });
   }
 
   async function onSave() {
@@ -53,8 +75,12 @@ export function PricingPage() {
       <div className="admin-page__head">
         <div>
           <div className="overline">PRICING</div>
-          <h1 className="display-md">가격표</h1>
-          <p className="caption">필요사항 → 견적 자동 작성에 쓰이는 단가입니다. 최근 저장 {formatDateTime(saved.updatedAt)}</p>
+          <h1 className="display-md">
+            가격표 <UnitTag />
+          </h1>
+          <p className="caption">
+            필요사항 → 견적 자동 작성에 쓰이는 {unitInfo(unit).label} 단가입니다. 두 사업부가 함께 쓰는 항목은 양쪽에 보이고 한쪽에서 고치면 같이 바뀌어요. 최근 저장 {formatDateTime(saved.updatedAt)}
+          </p>
         </div>
         <div className="row gap-8">
           <button className="btn btn--ghost btn--sm" onClick={() => setResetOpen(true)}>
@@ -75,53 +101,124 @@ export function PricingPage() {
       </div>
 
       <div className="pricing-grid">
-        <section className="card">
-          <div className="title-md">홀 대관료</div>
-          <ul className="list mt-8">
-            {HALLS.map((h) => (
-              <li key={h.id} className="list-item price-row">
-                <span className="grow">
-                  <b className="text-ink">{h.name}</b>
-                  <span className="caption"> 보증 {h.guaranteed} · 좌석 {h.seats}</span>
-                </span>
-                <input
-                  className="input input--sm num price-input"
-                  inputMode="numeric"
-                  value={(cat.hallRental[h.id as HallId] ?? 0).toLocaleString('ko-KR')}
-                  onChange={(e) => patch({ hallRental: { ...cat.hallRental, [h.id]: digitsOnly(e.target.value) } })}
-                  aria-label={`${h.name} 대관료`}
-                />
-                <span className="caption">원</span>
-              </li>
-            ))}
-          </ul>
-        </section>
+        {unit === 'venue' && (
+          <section className="card">
+            <div className="title-md">홀 대관료</div>
+            <ul className="list mt-8">
+              {HALLS.map((h) => (
+                <li key={h.id} className="list-item price-row">
+                  <span className="grow">
+                    <b className="text-ink">{h.name}</b>
+                    <span className="caption">
+                      {' '}
+                      보증 {h.guaranteed} · 좌석 {h.seats}
+                    </span>
+                  </span>
+                  <input
+                    className="input input--sm num price-input"
+                    inputMode="numeric"
+                    value={(cat.hallRental[h.id as HallId] ?? 0).toLocaleString('ko-KR')}
+                    onChange={(e) =>
+                      patch({
+                        hallRental: {
+                          ...cat.hallRental,
+                          [h.id]: digitsOnly(e.target.value),
+                        },
+                      })
+                    }
+                    aria-label={`${h.name} 대관료`}
+                  />
+                  <span className="caption">원</span>
+                </li>
+              ))}
+            </ul>
+          </section>
+        )}
 
         <section className="card">
           <div className="title-md">할인 · 예약금 정책</div>
           <ul className="list mt-8">
             {cat.discountPresets.map((d) => (
               <li key={d.id} className="list-item price-row">
-                <input className="input input--sm grow" value={d.label} onChange={(e) => patch({ discountPresets: cat.discountPresets.map((x) => (x.id === d.id ? { ...x, label: e.target.value } : x)) })} aria-label="할인 이름" />
-                <input className="input input--sm num rate-input" inputMode="numeric" value={d.rate} onChange={(e) => patch({ discountPresets: cat.discountPresets.map((x) => (x.id === d.id ? { ...x, rate: Math.min(100, digitsOnly(e.target.value)) } : x)) })} aria-label="할인율" />
+                <input
+                  className="input input--sm grow"
+                  value={d.label}
+                  onChange={(e) =>
+                    patch({
+                      discountPresets: cat.discountPresets.map((x) => (x.id === d.id ? { ...x, label: e.target.value } : x)),
+                    })
+                  }
+                  aria-label="할인 이름"
+                />
+                <input
+                  className="input input--sm num rate-input"
+                  inputMode="numeric"
+                  value={d.rate}
+                  onChange={(e) =>
+                    patch({
+                      discountPresets: cat.discountPresets.map((x) =>
+                        x.id === d.id
+                          ? {
+                              ...x,
+                              rate: Math.min(100, digitsOnly(e.target.value)),
+                            }
+                          : x,
+                      ),
+                    })
+                  }
+                  aria-label="할인율"
+                />
                 <span className="caption">%</span>
-                <button className="btn btn--ghost btn--icon" onClick={() => patch({ discountPresets: cat.discountPresets.filter((x) => x.id !== d.id) })} aria-label={`${d.label} 삭제`}>
+                <button
+                  className="btn btn--ghost btn--icon"
+                  onClick={() =>
+                    patch({
+                      discountPresets: cat.discountPresets.filter((x) => x.id !== d.id),
+                    })
+                  }
+                  aria-label={`${d.label} 삭제`}
+                >
                   <Icon name="trash" size={16} />
                 </button>
               </li>
             ))}
           </ul>
-          <button className="btn btn--ghost btn--sm mt-8" onClick={() => patch({ discountPresets: [...cat.discountPresets, { id: uid('dc'), label: '새 할인', rate: 5 }] })}>
+          <button
+            className="btn btn--ghost btn--sm mt-8"
+            onClick={() =>
+              patch({
+                discountPresets: [...cat.discountPresets, { id: uid('dc'), label: '새 할인', rate: 5 }],
+              })
+            }
+          >
             <Icon name="plus" size={16} /> 할인 추가
           </button>
           <div className="form-grid form-grid--2 mt-16">
             <label className="field">
               <span className="field__label">기본 예약금 비율 (%)</span>
-              <input className="input" inputMode="numeric" value={cat.defaultDepositRate} onChange={(e) => patch({ defaultDepositRate: Math.min(100, digitsOnly(e.target.value)) })} />
+              <input
+                className="input"
+                inputMode="numeric"
+                value={cat.defaultDepositRate}
+                onChange={(e) =>
+                  patch({
+                    defaultDepositRate: Math.min(100, digitsOnly(e.target.value)),
+                  })
+                }
+              />
             </label>
             <label className="field">
               <span className="field__label">견적 유효기간 (일)</span>
-              <input className="input" inputMode="numeric" value={cat.quoteValidDays} onChange={(e) => patch({ quoteValidDays: Math.max(1, digitsOnly(e.target.value)) })} />
+              <input
+                className="input"
+                inputMode="numeric"
+                value={cat.quoteValidDays}
+                onChange={(e) =>
+                  patch({
+                    quoteValidDays: Math.max(1, digitsOnly(e.target.value)),
+                  })
+                }
+              />
             </label>
           </div>
         </section>
@@ -147,10 +244,37 @@ export function PricingPage() {
             {g.items.map((i) => (
               <div key={i.key} className="catalog-row">
                 <input className="input input--sm" value={i.label} onChange={(e) => patchItem(i.key, { label: e.target.value })} aria-label="항목명" />
-                <input className="input input--sm num" inputMode="numeric" value={i.price.toLocaleString('ko-KR')} onChange={(e) => patchItem(i.key, { price: digitsOnly(e.target.value) })} aria-label={`${i.label} 단가`} />
+                <input
+                  className="input input--sm num"
+                  inputMode="numeric"
+                  value={i.price.toLocaleString('ko-KR')}
+                  onChange={(e) => patchItem(i.key, { price: digitsOnly(e.target.value) })}
+                  aria-label={`${i.label} 단가`}
+                />
                 <input className="input input--sm" value={i.unit} onChange={(e) => patchItem(i.key, { unit: e.target.value })} aria-label="단위" />
-                <input className="input input--sm" inputMode="numeric" value={i.peoplePerUnit ?? ''} placeholder="고정" onChange={(e) => patchItem(i.key, { peoplePerUnit: digitsOnly(e.target.value) || undefined })} aria-label="인원 기준 (명당)" />
-                <select className="select select--sm" value={i.basis ?? 'all'} onChange={(e) => patchItem(i.key, { basis: e.target.value as 'adults' | 'all' })} aria-label="기준 인원" disabled={!i.peoplePerUnit}>
+                <input
+                  className="input input--sm"
+                  inputMode="numeric"
+                  value={i.peoplePerUnit ?? ''}
+                  placeholder="고정"
+                  onChange={(e) =>
+                    patchItem(i.key, {
+                      peoplePerUnit: digitsOnly(e.target.value) || undefined,
+                    })
+                  }
+                  aria-label="인원 기준 (명당)"
+                />
+                <select
+                  className="select select--sm"
+                  value={i.basis ?? 'all'}
+                  onChange={(e) =>
+                    patchItem(i.key, {
+                      basis: e.target.value as 'adults' | 'all',
+                    })
+                  }
+                  aria-label="기준 인원"
+                  disabled={!i.peoplePerUnit}
+                >
                   <option value="all">전체 인원</option>
                   <option value="adults">성인만</option>
                 </select>
