@@ -10,7 +10,7 @@ import { Icon } from '../../../components/Icon';
 import { QuoteDocument } from '../../../components/QuoteDocument';
 import { Sheet, useToast } from '../../../components/ui';
 import { useCatalog, useStore } from '../../../data/hooks';
-import { elementToPdf } from '../../../lib/pdf';
+import { pagesToPdf } from '../../../lib/pdf';
 
 const ADJUST_CHIPS = ['인원을 바꾸고 싶어요', '메뉴 코스를 바꾸고 싶어요', '꽃장식을 바꾸고 싶어요', '추가 할인이 가능한지 궁금해요', '항목을 빼고 싶어요'];
 
@@ -23,7 +23,7 @@ export function QuotePdfButton({ booking: b, label = '견적서 PDF' }: { bookin
     if (!ref.current) return;
     setBusy(true);
     try {
-      await elementToPdf(ref.current, `엔젤스데이_견적서_${b.customer.name}_v${b.quote!.version}.pdf`);
+      await pagesToPdf([ref.current], `엔젤스데이_견적서_${b.customer.name}_v${b.quote!.version}.pdf`);
     } catch {
       toast('PDF를 만들지 못했어요. 잠시 후 다시 시도해 주세요.', 'error');
     } finally {

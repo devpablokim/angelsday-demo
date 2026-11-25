@@ -1,49 +1,53 @@
 import { CHANNEL_LABEL, contractTemplate } from '@shared/contract';
 import { formatDate, formatDateTime, won } from '@shared/dates';
 import { eventConfig } from '@shared/eventTypes';
-import type { Booking, ContractTemplateId } from '@shared/types';
+import type { Booking, ContractCancellation, ContractTemplateId } from '@shared/types';
 import { VENUE } from '@shared/venue';
 import { forwardRef, useRef, useState } from 'react';
 import { Logo } from '../brand/Logo';
-import { buildContract, downloadPdf, downloadXlsx } from '../lib/contract/generate';
+import { buildContract, downloadXlsx } from '../lib/contract/generate';
 import { elementToPdf } from '../lib/pdf';
+import { ContractDocument, type ContractDocMeta } from './contract/ContractDocument';
+import { renderToPdf } from './contract/renderPdf';
 import { Icon } from './Icon';
 import { useToast } from './ui';
 
-/** 파일 이름: 엔젤스데이_웨딩 계약서_성춘향_v2 */
+/** 파일 이름: 엔젤스데이_웨딩계약서_성춘향_v2 */
 export function contractFileBase(b: Booking, templateId: ContractTemplateId, version?: number) {
-  return `${VENUE.name}_${contractTemplate(templateId).label.replace(/\s/g, '')}_${b.customer.name}${version ? `_v${version}` : ''}`;
+  return `${VENUE.name}_${contractTemplate(templateId).label.replace(/[\s·]/g, '')}_${b.customer.name}${version ? `_v${version}` : ''}`;
 }
 
-/** 엑셀(원본 양식) · A4 PDF 내려받기 버튼 */
+/** 계약서 PDF (A4 두 장) · 엑셀(원본 양식) 내려받기 */
 export function ContractDownloads({
   booking: b,
   templateId,
   values,
-  version,
-  footnote,
+  meta = {},
+  cancelled,
   size = 'md',
-  only,
+  xlsx,
+  pdfLabel = '계약서 PDF',
 }: {
   booking: Booking;
   templateId: ContractTemplateId;
   values: Record<string, string>;
-  version?: number;
-  footnote?: string;
+  meta?: ContractDocMeta;
+  cancelled?: ContractCancellation;
   size?: 'sm' | 'md';
-  only?: 'pdf' | 'xlsx';
+  /** 엑셀 원본 양식 버튼도 보이기 (관리자) */
+  xlsx?: boolean;
+  pdfLabel?: string;
 }) {
   const toast = useToast();
   const [busy, setBusy] = useState<'' | 'xlsx' | 'pdf'>('');
-  const base = contractFileBase(b, templateId, version);
-  const cls = `btn btn--secondary${size === 'sm' ? ' btn--sm' : ''}`;
+  const base = contractFileBase(b, templateId, meta.version);
+  const icon = size === 'sm' ? 16 : 18;
 
   async function run(kind: 'xlsx' | 'pdf') {
     setBusy(kind);
     try {
-      const pkg = await buildContract(templateId, values);
-      if (kind === 'xlsx') downloadXlsx(pkg, `${base}.xlsx`);
-      else await downloadPdf(pkg, `${base}.pdf`, footnote);
+      if (kind === 'xlsx') downloadXlsx(await buildContract(templateId, values), `${base}.xlsx`);
+      else await renderToPdf(<ContractDocument templateId={templateId} values={values} meta={meta} cancelled={cancelled} />, `${base}.pdf`);
     } catch (e) {
       toast(e instanceof Error ? e.message : '계약서 파일을 만들지 못했어요.', 'error');
     } finally {
@@ -53,14 +57,12 @@ export function ContractDownloads({
 
   return (
     <>
-      {only !== 'pdf' && (
-        <button className={cls} onClick={() => void run('xlsx')} disabled={!!busy}>
-          {busy === 'xlsx' ? <span className="spinner spinner--dark" /> : <Icon name="download" size={size === 'sm' ? 16 : 18} />} 엑셀 (원본 양식)
-        </button>
-      )}
-      {only !== 'xlsx' && (
-        <button className={cls} onClick={() => void run('pdf')} disabled={!!busy}>
-          {busy === 'pdf' ? <span className="spinner spinner--dark" /> : <Icon name="download" size={size === 'sm' ? 16 : 18} />} A4 PDF
+      <button className={`btn btn--secondary${size === 'sm' ? ' btn--sm' : ''}`} onClick={() => void run('pdf')} disabled={!!busy}>
+        {busy === 'pdf' ? <span className="spinner spinner--dark" /> : <Icon name="download" size={icon} />} {pdfLabel}
+      </button>
+      {xlsx && (
+        <button className={`btn btn--ghost${size === 'sm' ? ' btn--sm' : ''}`} onClick={() => void run('xlsx')} disabled={!!busy} title="엔젤스데이 엑셀 양식에 같은 내용을 채운 파일">
+          {busy === 'xlsx' ? <span className="spinner spinner--dark" /> : <Icon name="download" size={icon} />} 엑셀 양식
         </button>
       )}
     </>
@@ -159,6 +161,37 @@ export const ContractHistoryDocument = forwardRef<HTMLDivElement, { booking: Boo
           ))}
         </tbody>
       </table>
+      {(c?.cancellations ?? []).length > 0 && (
+        <table className="quote-doc__table mt-24">
+          <thead>
+            <tr>
+              <th>취소 · 철회 일시</th>
+              <th>내용</th>
+              <th>요청 · 처리</th>
+              <th className="num">위약금 · 환불</th>
+            </tr>
+          </thead>
+          <tbody>
+            {c!.cancellations!.map((x) => (
+              <tr key={x.id}>
+                <td>{formatDateTime(x.at)}</td>
+                <td>
+                  <b>{x.kind === 'cancel' ? '계약 취소' : '취소 철회'}</b>
+                  {x.withBooking ? (x.kind === 'cancel' ? ' · 예약 함께 취소' : ' · 예약 복구') : ''}
+                  <div className="caption">사유: {x.reason}</div>
+                  {x.rule && <div className="caption">적용 규정: {x.rule}</div>}
+                </td>
+                <td>
+                  {x.requester}
+                  <br />
+                  {CHANNEL_LABEL[x.channel]} · 처리 {x.staff}
+                </td>
+                <td className="num">{x.kind === 'cancel' ? `${won(x.penalty)} · ${won(x.refund)}` : '—'}</td>
+              </tr>
+            ))}
+          </tbody>
+        </table>
+      )}
       <p className="quote-doc__foot" data-pdf-keep>
         변경 기록은 지우거나 고칠 수 없으며, 정정은 새 기록으로만 남습니다. · {VENUE.name} · {VENUE.address} · {VENUE.phone}
       </p>

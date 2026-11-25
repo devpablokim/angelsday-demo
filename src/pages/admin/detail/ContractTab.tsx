@@ -1,4 +1,22 @@
-import { CHANNEL_LABEL, CONTRACT_GROUPS, CONTRACT_TEMPLATES, contractAutoValues, contractDiff, contractTemplate, latestContract, templateForEvent } from '@shared/contract';
+import {
+  activeCancellation,
+  CHANNEL_LABEL,
+  CONTRACT_GROUPS,
+  CONTRACT_TEMPLATES,
+  contractAutoValues,
+  contractCancellations,
+  contractDateFields,
+  contractDateOf,
+  contractDefaults,
+  contractDiff,
+  contractTemplate,
+  eventWhenText,
+  latestContract,
+  parseEventWhen,
+  syncRuleFields,
+  templateForEvent,
+  type ContractField,
+} from '@shared/contract';
 import { formatDateTime, todayKST, won } from '@shared/dates';
 import * as ops from '@shared/ops';
 import type { Booking, ChangeChannel, ContractChange, ContractTemplateId } from '@shared/types';
@@ -8,14 +26,24 @@ import { ContractPreview } from '../../../components/ContractPreview';
 import { Icon } from '../../../components/Icon';
 import { Sheet, useToast } from '../../../components/ui';
 import { useAdmin, useStore } from '../../../data/hooks';
-import { templateValues } from '../../../lib/contract/generate';
 import { errorMessage, useSaveBooking } from '../adminUtils';
+import { CancelContractSheet, RestoreContractSheet } from './ContractCancel';
 
 const OPEN_GROUPS = new Set(['행사', '주최자', '계약금', '계약']);
+/** 계약일은 날짜 하나로 입력 (양식에 따라 년·월·일·요일 칸으로 나눠 씀) */
+const DATE_KEYS = new Set(['contractYear', 'contractMonth', 'contractDay', 'contractWeekday', 'contractDate']);
+
+function startValues(templateId: ContractTemplateId, b: Booking, staff: string): Record<string, string> {
+  const latest = latestContract(b);
+  const base = latest && latest.templateId === templateId ? latest.values : contractAutoValues(templateId, b, { manager: b.manager?.name || staff, today: todayKST() });
+  return { ...contractDefaults(templateId), ...base };
+}
 
 /**
- * 계약서 — 엔젤스데이 엑셀 양식에 예약 정보를 자동으로 채우고, 직원이 확인한 뒤 버튼 하나로 발행합니다.
- * 발행할 때마다 판(v1, v2…)이 쌓이고, 두 번째 판부터는 변경 기록(요청자·경로·사유·금액)을 꼭 남깁니다.
+ * 계약서 — 예약 정보를 계약서 칸에 자동으로 채우고, 직원이 확인한 뒤 버튼 하나로 발행합니다.
+ * 화면·PDF 는 우리 디자인 시스템 계약서(A4 두 장), 엑셀 양식 파일도 함께 받을 수 있습니다.
+ * 발행할 때마다 판(v1, v2…)이 쌓이고, 두 번째 판부터는 변경 기록(요청자·경로·사유·금액)을 남깁니다.
+ * 계약 취소·철회는 언제든 할 수 있고, 기록으로 남습니다.
  */
 export function ContractTab({ booking: b }: { booking: Booking }) {
   const admin = useAdmin();
@@ -23,68 +51,62 @@ export function ContractTab({ booking: b }: { booking: Booking }) {
   const toast = useToast();
   const save = useSaveBooking();
   const latest = latestContract(b);
+  const cancelled = activeCancellation(b);
   const staff = admin?.name || '관리자';
 
   const [templateId, setTemplateId] = useState<ContractTemplateId>(latest?.templateId ?? templateForEvent(b.eventType));
-  const [defaults, setDefaults] = useState<Record<string, string> | null>(null);
-  const [values, setValues] = useState<Record<string, string>>({});
+  const [values, setValues] = useState<Record<string, string>>(() => startValues(templateId, b, staff));
   const [issueOpen, setIssueOpen] = useState(false);
+  const [cancelOpen, setCancelOpen] = useState(false);
+  const [restoreOpen, setRestoreOpen] = useState(false);
   const tpl = contractTemplate(templateId);
 
-  // 양식 기본값(표준 단가·문구) + 예약 자동값, 이미 발행한 판이 있으면 그 판의 값에서 시작
+  // 양식을 바꾸거나 판이 새로 발행되면 그 값으로 다시 시작합니다
   useEffect(() => {
-    let alive = true;
-    setDefaults(null);
-    templateValues(templateId)
-      .then((d) => {
-        if (!alive) return;
-        setDefaults(d);
-        const base =
-          latest && latest.templateId === templateId
-            ? latest.values
-            : contractAutoValues(templateId, b, {
-                manager: b.manager?.name || staff,
-                today: todayKST(),
-              });
-        setValues({ ...d, ...base });
-      })
-      .catch((e) => toast(errorMessage(e), 'error'));
-    return () => {
-      alive = false;
-    };
-    // 판이 새로 발행되면 그 값으로 다시 시작합니다
+    setValues(startValues(templateId, b, staff));
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [templateId, latest?.version]);
 
-  const previous = latest && defaults ? { ...defaults, ...latest.values } : null;
-  const changed = useMemo(() => (previous && latest?.templateId === templateId ? contractDiff(templateId, previous, values) : []), [previous, values, templateId, latest?.templateId]);
+  const current = useMemo(() => syncRuleFields(values), [values]);
+  const previous = useMemo(() => (latest ? syncRuleFields({ ...contractDefaults(latest.templateId), ...latest.values }) : null), [latest]);
+  const changed = useMemo(() => (previous && latest?.templateId === templateId ? contractDiff(templateId, previous, current) : []), [previous, current, templateId, latest?.templateId]);
   const changedKeys = changed.map((c) => c.key);
   const dirty = !latest || latest.templateId !== templateId || changed.length > 0;
+  const set = (patch: Record<string, string>) => setValues((v) => ({ ...v, ...patch }));
 
   function refill() {
-    const auto = contractAutoValues(templateId, b, {
-      manager: b.manager?.name || staff,
-      today: todayKST(),
-    });
-    setValues((v) => ({ ...v, ...auto }));
+    set(contractAutoValues(templateId, b, { manager: b.manager?.name || staff, today: todayKST() }));
     toast('예약 정보(일시·홀·인원·연락처·계약금)로 다시 채웠어요.');
   }
 
-  if (!defaults) {
-    return (
-      <div className="card">
-        <span className="spinner spinner--dark" /> 계약서 양식을 불러오는 중…
-      </div>
-    );
-  }
+  const meta = dirty ? { draft: true, version: latest ? latest.version + 1 : 1 } : { version: latest!.version, issuedAt: latest!.issuedAt, confirmedAt: latest!.confirmedAt };
 
   return (
     <div className="contract-tab">
+      {cancelled && (
+        <section className="card contract-cancelled">
+          <div className="grow">
+            <div className="row wrap gap-8">
+              <span className="badge badge--error">계약 취소</span>
+              <b className="text-ink">{formatDateTime(cancelled.at)}</b>
+              {b.cancelledAt && <span className="caption">예약도 취소됨</span>}
+            </div>
+            <p className="body-sm mt-8">
+              사유: {cancelled.reason} · 위약금 <b className="text-ink">{won(cancelled.penalty)}</b> · 환불 <b className="text-ink">{won(cancelled.refund)}</b> · 처리 {cancelled.staff}
+            </p>
+            {cancelled.rule && <p className="caption">적용 규정: {cancelled.rule}</p>}
+          </div>
+          <button className="btn btn--secondary" onClick={() => setRestoreOpen(true)}>
+            <Icon name="refresh" size={18} /> 취소 철회
+          </button>
+        </section>
+      )}
+
       <section className="card contract-tab__head">
         <div className="grow">
           <div className="title-md">계약서</div>
           <p className="caption">
-            엔젤스데이 엑셀 양식 그대로 채워집니다. 확인한 뒤 발행하면 고객 페이지에 공개되고 메일이 나가요.
+            예약 정보가 계약서에 자동으로 채워져요. 확인한 뒤 발행하면 고객 페이지에 공개되고 메일이 나가요.
             {latest && (
               <>
                 {' '}
@@ -96,7 +118,7 @@ export function ContractTab({ booking: b }: { booking: Booking }) {
         </div>
         <label className="field contract-tab__tpl">
           <span className="field__label">양식</span>
-          <select className="input" value={templateId} onChange={(e) => setTemplateId(e.target.value as ContractTemplateId)}>
+          <select className="input" value={templateId} disabled={!!cancelled} onChange={(e) => setTemplateId(e.target.value as ContractTemplateId)}>
             {CONTRACT_TEMPLATES.map((t) => (
               <option key={t.id} value={t.id}>
                 {t.label}
@@ -109,61 +131,75 @@ export function ContractTab({ booking: b }: { booking: Booking }) {
       <div className="contract-grid">
         <section className="card contract-form">
           <div className="row between wrap gap-8">
-            <div className="title-sm">칸 채우기</div>
-            <button className="btn btn--ghost btn--sm" onClick={refill}>
+            <div className="title-sm">계약 내용</div>
+            <button className="btn btn--ghost btn--sm" onClick={refill} disabled={!!cancelled}>
               <Icon name="refresh" size={16} /> 예약 정보로 다시 채우기
             </button>
           </div>
-          {changed.length > 0 && (
+          {changed.length > 0 && !cancelled && (
             <p className="callout callout--neutral mt-12 body-sm">
               v{latest!.version}와 달라진 칸 {changed.length}개는 노란색으로 표시돼요.
             </p>
           )}
-          {CONTRACT_GROUPS.map((g) => {
-            const fields = tpl.fields.filter((x) => x.group === g);
-            if (!fields.length) return null;
-            return (
-              <details key={g} className="contract-group" open={OPEN_GROUPS.has(g) || fields.some((x) => changedKeys.includes(x.key))}>
-                <summary>{g}</summary>
-                <div className="contract-group__fields">
-                  {fields.map((x) => {
-                    const isChanged = changedKeys.includes(x.key);
-                    const props = {
-                      className: `input${x.kind === 'multiline' ? ' textarea' : ''}`,
-                      value: values[x.key] ?? '',
-                      onChange: (e: { target: { value: string } }) => setValues((v) => ({ ...v, [x.key]: e.target.value })),
-                    };
-                    return (
-                      <label key={x.key} className={`field${isChanged ? ' is-changed' : ''}`}>
-                        <span className="field__label">
-                          {x.label}{' '}
-                          <span className="caption">
-                            {x.sheet === 1 ? '뒷면' : ''} {x.cell}
-                          </span>
-                        </span>
-                        {x.kind === 'multiline' ? <textarea rows={2} {...props} /> : <input inputMode={x.kind === 'number' ? 'numeric' : undefined} {...props} />}
-                        {isChanged && <span className="caption">이전: {previous?.[x.key] || '(비어 있음)'}</span>}
-                        {!isChanged && x.hint && <span className="caption">{x.hint}</span>}
+          <fieldset className="contract-form__fields" disabled={!!cancelled}>
+            {CONTRACT_GROUPS.filter((g) => g !== '규정면').map((g) => {
+              const fields = tpl.fields.filter((x) => x.group === g && !DATE_KEYS.has(x.key));
+              const hasDate = g === '계약' && tpl.fields.some((x) => DATE_KEYS.has(x.key));
+              if (!fields.length && !hasDate) return null;
+              const dateChanged = changedKeys.some((k) => DATE_KEYS.has(k));
+              return (
+                <details key={g} className="contract-group" open={OPEN_GROUPS.has(g) || fields.some((x) => changedKeys.includes(x.key))}>
+                  <summary>{g}</summary>
+                  <div className="contract-group__fields">
+                    {hasDate && (
+                      <label className={`field${dateChanged ? ' is-changed' : ''}`}>
+                        <span className="field__label">계약일</span>
+                        <input type="date" className="input" value={contractDateOf(values) ?? ''} onChange={(e) => e.target.value && set(contractDateFields(templateId, e.target.value))} />
                       </label>
-                    );
-                  })}
-                </div>
-              </details>
-            );
-          })}
+                    )}
+                    {fields.map((x) =>
+                      x.key === 'eventDate' ? (
+                        <EventWhenField
+                          key={x.key}
+                          booking={b}
+                          value={values.eventDate}
+                          changed={changedKeys.includes('eventDate')}
+                          before={previous?.eventDate}
+                          onChange={(s) => set({ eventDate: s })}
+                        />
+                      ) : (
+                        <FieldInput key={x.key} field={x} value={values[x.key] ?? ''} changed={changedKeys.includes(x.key)} before={previous?.[x.key]} onChange={(s) => set({ [x.key]: s })} />
+                      ),
+                    )}
+                  </div>
+                </details>
+              );
+            })}
+          </fieldset>
         </section>
 
         <section className="contract-side">
           <div className="card contract-actions">
             <div className="row wrap gap-8">
-              <ContractDownloads booking={b} templateId={templateId} values={values} footnote={`${tpl.label} · 미리보기 (발행 전)`} />
+              <ContractDownloads booking={b} templateId={templateId} values={current} meta={meta} cancelled={cancelled} xlsx />
             </div>
-            <button className="btn btn--primary btn--block mt-12" disabled={!dirty} onClick={() => setIssueOpen(true)}>
-              <Icon name="check" size={18} /> {latest ? (dirty ? `변경 계약서 v${latest.version + 1} 발행` : `v${latest.version} 발행됨 · 바뀐 내용 없음`) : '확인하고 v1 발행'}
-            </button>
-            <p className="caption mt-8">발행하면 고객 페이지에 PDF로 공개되고 안내 메일이 나가요. 고객이 ‘확인’을 누르면 확정으로 기록됩니다.</p>
+            {cancelled ? (
+              <p className="caption mt-12">취소된 계약이에요. 다시 발행하려면 먼저 ‘취소 철회’를 눌러 주세요.</p>
+            ) : (
+              <>
+                <button className="btn btn--primary btn--block mt-12" disabled={!dirty} onClick={() => setIssueOpen(true)}>
+                  <Icon name="check" size={18} /> {latest ? (dirty ? `변경 계약서 v${latest.version + 1} 발행` : `v${latest.version} 발행됨 · 바뀐 내용 없음`) : '확인하고 v1 발행'}
+                </button>
+                <p className="caption mt-8">발행하면 고객 페이지에 공개되고 안내 메일이 나가요. 고객이 ‘확인’을 누르면 확정으로 기록됩니다.</p>
+                {latest && (
+                  <button className="btn btn--danger btn--sm btn--block mt-12" onClick={() => setCancelOpen(true)}>
+                    <Icon name="close" size={16} /> 계약 취소
+                  </button>
+                )}
+              </>
+            )}
           </div>
-          <ContractPreview templateId={templateId} values={values} highlight={changedKeys} />
+          <ContractPreview templateId={templateId} values={current} highlight={cancelled ? [] : changedKeys} meta={meta} cancelled={cancelled} />
         </section>
       </div>
 
@@ -179,7 +215,7 @@ export function ContractTab({ booking: b }: { booking: Booking }) {
         templateChanged={!!latest && latest.templateId !== templateId}
         onIssue={async (change) => {
           try {
-            const next = ops.issueContract(b, templateId, values, staff, change);
+            const next = ops.issueContract(b, templateId, current, staff, change);
             if (!(await save(next))) return;
             // 첫 판은 자동 안내 메일(계약서 발행), 변경 판은 바로 다시 보냅니다
             if (latest) await store.sendEmailNow(b.id, 'contract_issued');
@@ -190,6 +226,46 @@ export function ContractTab({ booking: b }: { booking: Booking }) {
           }
         }}
       />
+      <CancelContractSheet open={cancelOpen} onClose={() => setCancelOpen(false)} booking={b} />
+      <RestoreContractSheet open={restoreOpen} onClose={() => setRestoreOpen(false)} booking={b} />
+    </div>
+  );
+}
+
+function FieldInput({ field: x, value, changed, before, onChange }: { field: ContractField; value: string; changed: boolean; before?: string; onChange: (s: string) => void }) {
+  const props = {
+    className: `input${x.kind === 'multiline' ? ' textarea' : ''}`,
+    value,
+    onChange: (e: { target: { value: string } }) => onChange(e.target.value),
+  };
+  return (
+    <label className={`field${changed ? ' is-changed' : ''}`}>
+      <span className="field__label">{x.label}</span>
+      {x.kind === 'multiline' ? <textarea rows={2} {...props} /> : <input inputMode={x.kind === 'number' ? 'numeric' : undefined} {...props} />}
+      {changed && <span className="caption">이전: {before || '(비어 있음)'}</span>}
+      {!changed && x.hint && <span className="caption">{x.hint}</span>}
+    </label>
+  );
+}
+
+/** 행사 일시 — 날짜 · 시작 · 종료로 나눠 입력하고, 엑셀 양식 칸 모양으로 저장합니다 */
+function EventWhenField({ booking: b, value, changed, before, onChange }: { booking: Booking; value?: string; changed: boolean; before?: string; onChange: (s: string) => void }) {
+  const [h, m] = b.time.split(':').map(Number);
+  const w = parseEventWhen(value) ?? { date: b.date, start: b.time, end: `${String(Math.min(23, h + 3)).padStart(2, '0')}:${String(m).padStart(2, '0')}` };
+  const put = (patch: Partial<typeof w>) => {
+    const next = { ...w, ...patch };
+    if (next.date && /^\d{2}:\d{2}$/.test(next.start) && /^\d{2}:\d{2}$/.test(next.end)) onChange(eventWhenText(next));
+  };
+  return (
+    <div className={`field${changed ? ' is-changed' : ''}`}>
+      <span className="field__label">행사 일시</span>
+      <div className="contract-when">
+        <input type="date" className="input" aria-label="행사일" value={w.date} onChange={(e) => put({ date: e.target.value })} />
+        <input type="time" className="input" aria-label="시작" value={w.start} onChange={(e) => put({ start: e.target.value })} />
+        <span className="caption">~</span>
+        <input type="time" className="input" aria-label="종료" value={w.end} onChange={(e) => put({ end: e.target.value })} />
+      </div>
+      {changed && <span className="caption">이전: {before ? before.replace(/\s+/g, ' ') : '(비어 있음)'}</span>}
     </div>
   );
 }
@@ -310,17 +386,33 @@ function IssueSheet({
 function ContractHistory({ booking: b }: { booking: Booking }) {
   const c = b.contract;
   if (!c?.versions.length) return null;
+  const cancellations = contractCancellations(b);
+  const lastCancel = activeCancellation(b);
   return (
     <section className="card">
       <div className="row between wrap gap-8">
         <div>
-          <div className="title-md">발행 이력</div>
-          <p className="caption">모든 판을 그대로 보관합니다. 변경 기록은 지우거나 고칠 수 없어요.</p>
+          <div className="title-md">발행 · 취소 이력</div>
+          <p className="caption">모든 판과 취소·철회 기록을 그대로 보관합니다. 기록은 지우거나 고칠 수 없어요.</p>
         </div>
         <ContractHistoryPdfButton booking={b} />
       </div>
+      {cancellations.length > 0 && (
+        <ul className="contract-cancels mt-16">
+          {[...cancellations].reverse().map((x) => (
+            <li key={x.id} className={x.kind === 'cancel' ? 'is-cancel' : 'is-restore'}>
+              <b>{x.kind === 'cancel' ? '계약 취소' : '취소 철회'}</b> · {formatDateTime(x.at)} · {x.staff}
+              {x.withBooking ? (x.kind === 'cancel' ? ' · 예약 함께 취소' : ' · 예약 복구') : ''}
+              <div className="caption">
+                {x.kind === 'cancel' && `위약금 ${won(x.penalty)} · 환불 ${won(x.refund)} · `}사유: {x.reason}
+                {x.requester && ` · 요청 ${x.requester} (${CHANNEL_LABEL[x.channel]})`}
+              </div>
+            </li>
+          ))}
+        </ul>
+      )}
       <div className="contract-versions mt-16">
-        {[...c.versions].reverse().map((v) => {
+        {[...c.versions].reverse().map((v, i) => {
           const ch = c.changes.find((x) => x.version === v.version);
           return (
             <article key={v.version} className="contract-version">
@@ -334,9 +426,11 @@ function ContractHistory({ booking: b }: { booking: Booking }) {
                     booking={b}
                     templateId={v.templateId}
                     values={v.values}
-                    version={v.version}
+                    meta={{ version: v.version, issuedAt: v.issuedAt, confirmedAt: v.confirmedAt }}
+                    cancelled={i === 0 ? lastCancel : undefined}
                     size="sm"
-                    footnote={`${contractTemplate(v.templateId).label} v${v.version} · ${formatDateTime(v.issuedAt)} 발행`}
+                    pdfLabel="PDF"
+                    xlsx
                   />
                 </div>
               </div>
@@ -347,11 +441,11 @@ function ContractHistory({ booking: b }: { booking: Booking }) {
                     {ch.amountDelta ? `${ch.amountDelta > 0 ? '추가금' : '환불'} ${won(Math.abs(ch.amountDelta))}` : '금액 변동 없음'}
                   </div>
                   <ul className="contract-changes">
-                    {ch.items.map((i) => (
-                      <li key={i.key}>
-                        <span className="caption">{i.label}</span>
+                    {ch.items.map((it) => (
+                      <li key={it.key}>
+                        <span className="caption">{it.label}</span>
                         <div>
-                          <s className="text-muted">{i.before || '—'}</s> → <b>{i.after || '—'}</b>
+                          <s className="text-muted">{it.before || '—'}</s> → <b>{it.after || '—'}</b>
                         </div>
                       </li>
                     ))}

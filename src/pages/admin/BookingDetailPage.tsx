@@ -1,3 +1,4 @@
+import { activeCancellation } from '@shared/contract';
 import { ddayLabel, formatDate } from '@shared/dates';
 import { headlinePlain } from '@shared/eventTypes';
 import { computeStep, STEPS } from '@shared/steps';
@@ -102,6 +103,7 @@ export function BookingDetailPage() {
                 STEP {step} · {STEPS[step - 1].title}
               </span>
             )}
+            {!b.cancelledAt && activeCancellation(b) && <span className="badge badge--error">계약 취소</span>}
             {b.source !== 'web' && (
               <span className="badge badge--outline">
                 {

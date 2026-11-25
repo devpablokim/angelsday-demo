@@ -359,6 +359,24 @@ label.btn { cursor: pointer; }
 .contract-versions { display: flex; flex-direction: column; gap: 12px; }
 .contract-version { padding: 14px; border-radius: var(--radius-md); border: 1px solid var(--color-hairline); background: var(--color-canvas-soft); }
 .contract-version__change { margin-top: 10px; display: flex; flex-direction: column; gap: 8px; }
+.contract-form__fields { border: 0; margin: 0; padding: 0; min-width: 0; }
+.contract-form__fields:disabled { opacity: 0.6; }
+.contract-when { display: grid; grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr); gap: 6px; align-items: center; }
+.contract-when > input[type='date'] { grid-column: 1 / -1; }
+.contract-when .input { min-width: 0; padding-left: 10px; padding-right: 6px; }
+.contract-group .field.is-changed .contract-when .input { background: #fff6cc; border-color: #e7c200; }
+.contract-cancelled { display: flex; flex-wrap: wrap; gap: 16px; align-items: center; background: var(--color-error-pale); border-color: #ecc9c5; }
+.contract-cancels { list-style: none; margin: 0; padding: 0; display: flex; flex-direction: column; gap: 8px; }
+.contract-cancels li { padding: 10px 14px; border-radius: var(--radius-md); border: 1px solid var(--color-hairline); font-size: 14px; color: var(--color-ink); }
+.contract-cancels li.is-cancel { background: var(--color-error-pale); border-color: #ecc9c5; }
+.contract-cancels li.is-cancel b { color: var(--color-error); }
+.contract-cancels li.is-restore { background: var(--color-success-pale); border-color: #cfe3d7; }
+.cancel-estimate { padding: 14px 16px; border-radius: var(--radius-md); background: var(--color-canvas-soft); border: 1px solid var(--color-hairline); }
+.cancel-estimate__grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px 16px; margin: 10px 0 0; }
+.cancel-estimate__grid div { display: flex; justify-content: space-between; gap: 8px; font-size: 13px; }
+.cancel-estimate__grid dt { color: var(--color-muted); }
+.cancel-estimate__grid dd { margin: 0; color: var(--color-ink); font-weight: 600; }
+.cancel-amounts { gap: 12px; }
 
 /* 사업부 전환 (베뉴 / 케이터링) */
 .unit-switch { display: grid; grid-template-columns: 1fr 1fr; gap: 4px; padding: 4px; margin: 0 4px 20px; border-radius: var(--radius-md); background: rgba(255, 255, 255, 0.06); }

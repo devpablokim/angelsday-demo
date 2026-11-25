@@ -115,3 +115,33 @@ export async function elementToPdf(el: HTMLElement, filename: string): Promise<v
   });
   pdf.save(filename);
 }
+
+/** A4 세로 (96dpi 기준 화면 px) */
+export const A4_PX = { width: 794, height: 1123 } as const;
+
+async function assetsReady(root: ParentNode) {
+  await document.fonts?.ready;
+  await Promise.all(Array.from(root.querySelectorAll('img')).map((img) => (img.complete ? null : new Promise((r) => ((img.onload = r), (img.onerror = r))))));
+}
+
+/**
+ * 페이지 요소 하나 = PDF 한 쪽. 내용이 A4 보다 길면 비율 그대로 줄여 한 장 안에 담습니다 (중간에서 잘리지 않음).
+ * 각 요소는 A4 폭(794px)에 여백까지 포함해 그려져 있어야 합니다.
+ */
+export async function pagesToPdf(pages: HTMLElement[], filename: string): Promise<void> {
+  const [{ default: html2canvas }, { jsPDF }] = await Promise.all([import('html2canvas'), import('jspdf')]);
+  for (const p of pages) await assetsReady(p);
+  const pdf = new jsPDF({ unit: 'mm', format: 'a4', orientation: 'portrait' });
+  const W = pdf.internal.pageSize.getWidth();
+  const H = pdf.internal.pageSize.getHeight();
+  for (let i = 0; i < pages.length; i++) {
+    const el = pages[i];
+    const canvas = await html2canvas(el, { scale: 2.5, backgroundColor: '#ffffff', useCORS: true, logging: false, width: el.offsetWidth, height: el.scrollHeight, windowWidth: el.offsetWidth });
+    const fit = Math.min(1, (H / W) * (canvas.width / canvas.height));
+    const w = W * fit;
+    const h = (w * canvas.height) / canvas.width;
+    if (i > 0) pdf.addPage();
+    pdf.addImage(canvas.toDataURL('image/jpeg', 0.93), 'JPEG', (W - w) / 2, 0, w, h);
+  }
+  pdf.save(filename);
+}

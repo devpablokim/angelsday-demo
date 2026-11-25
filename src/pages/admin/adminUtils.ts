@@ -75,6 +75,7 @@ const EVENT_TEXT: Record<EmailEvent, string> = {
   transfer_notified: '입금 알림 직후',
   deposit_paid: '예약금 입금 확인 직후',
   contract_issued: '계약서 발행 직후',
+  contract_cancelled: '계약 취소 처리 시 (직원 선택)',
   balance_paid: '잔금 결제 직후',
   photos_released: '사진 공개 직후',
   revision_replied: '수정 요청 답변 직후',

@@ -1,6 +1,6 @@
 import { addDays, ddayLabel, formatDate, kstDateTime, todayKST } from './dates';
 import { eventConfig, headlinePlain } from './eventTypes';
-import { latestContract } from './contract';
+import { activeCancellation, latestContract } from './contract';
 import { calcQuote, paidAmount } from './quote';
 import { computeStep, depositPaid } from './steps';
 import type { Booking, ISODateTime } from './types';
@@ -12,7 +12,7 @@ import { hallName, VENUE } from './venue';
  * - relative: 기준일(행사일·문의일·견적 발송일) ± N일 오전 10시(KST) 발송
  * Cloud Functions 의 매일 스케줄러와 관리자 화면(발송 예정 미리보기)이 같은 규칙을 사용합니다.
  */
-export type EmailEvent = 'created' | 'quote_sent' | 'adjust_replied' | 'transfer_notified' | 'deposit_paid' | 'contract_issued' | 'balance_paid' | 'photos_released' | 'revision_replied';
+export type EmailEvent = 'created' | 'quote_sent' | 'adjust_replied' | 'transfer_notified' | 'deposit_paid' | 'contract_issued' | 'contract_cancelled' | 'balance_paid' | 'photos_released' | 'revision_replied';
 export type Anchor = 'eventDate' | 'createdAt' | 'quoteSentAt' | 'photosReleasedAt';
 export type Condition = 'always' | 'step1' | 'step2_quote_sent' | 'paid' | 'paid_not_done' | 'photos';
 
@@ -33,6 +33,7 @@ export const EMAIL_RULES: EmailRule[] = [
   { id: 'transfer_notified', name: '입금 알림 접수 · 확인 중 안내', trigger: { type: 'event', event: 'transfer_notified' }, condition: 'always', defaultEnabled: true },
   { id: 'deposit_paid', name: '입금 확인 · 예약 확정 · 영수증', trigger: { type: 'event', event: 'deposit_paid' }, condition: 'always', defaultEnabled: true },
   { id: 'contract_issued', name: '계약서 발행 · 변경 안내 (고객 확인 요청)', trigger: { type: 'event', event: 'contract_issued' }, condition: 'always', defaultEnabled: true },
+  { id: 'contract_cancelled', name: '계약 취소 안내 (위약금 · 환불)', trigger: { type: 'event', event: 'contract_cancelled' }, condition: 'always', defaultEnabled: true },
   { id: 'd60', name: 'D-60 준비 일정 안내', trigger: { type: 'relative', anchor: 'eventDate', offsetDays: -60, hour: 10 }, condition: 'paid_not_done', defaultEnabled: true },
   { id: 'd30', name: 'D-30 세부 연출 · 메뉴 확정 안내', trigger: { type: 'relative', anchor: 'eventDate', offsetDays: -30, hour: 10 }, condition: 'paid_not_done', defaultEnabled: true },
   { id: 'd14', name: 'D-14 영상 · 음악 · 자료 전달 요청', trigger: { type: 'relative', anchor: 'eventDate', offsetDays: -14, hour: 10 }, condition: 'paid_not_done', defaultEnabled: true },
@@ -163,6 +164,30 @@ export function renderEmail(ruleId: string, b: Booking, baseUrl: string, today =
           : [`${name}님, 엔젤스데이 계약서를 발행했어요.`, '페이지에서 계약서를 확인하시고 A4 PDF로 내려받아 보관해 주세요. 내용이 맞으면 ‘계약 내용을 확인했어요’를 눌러 주세요.'],
         facts: [...facts, ...(v ? [{ label: '계약서', value: `v${v.version} · ${formatDate(v.issuedAt.slice(0, 10))} 발행` }] : [])],
         cta: { label: '계약서 확인하기', url },
+      };
+    }
+    case 'contract_cancelled': {
+      const c = activeCancellation(b);
+      return {
+        subject: '[엔젤스데이] 계약 취소가 처리되었어요',
+        preheader: c ? `위약금 ${money(c.penalty)} · 환불 ${money(c.refund)}` : '계약 취소 안내',
+        title: '계약 취소가 처리되었어요',
+        paragraphs: [
+          `${name}님, 요청하신 ${cfg.label} 계약 취소를 처리했어요.`,
+          ...(c?.reason ? [`취소 사유: ${c.reason}`] : []),
+          c && c.refund > 0 ? `환불 금액 ${money(c.refund)}은 영업일 기준 3~5일 안에 입금해 드릴게요.` : '추가로 돌려드릴 금액은 없어요.',
+          '페이지에서 취소 내용과 계약서를 확인하실 수 있어요. 궁금한 점은 담당 플래너에게 연락 주세요.',
+        ],
+        facts: [
+          ...facts,
+          ...(c
+            ? [
+                { label: '위약금', value: money(c.penalty) },
+                { label: '환불 금액', value: money(c.refund) },
+              ]
+            : []),
+        ],
+        cta: { label: '취소 내용 확인하기', url },
       };
     }
     case 'balance_paid':
@@ -312,6 +337,8 @@ export function planEmails(b: Booking, enabled: Record<string, boolean>, now: Da
         transfer_notified: !!b.transferNotice,
         deposit_paid: !!paidAt,
         contract_issued: (b.contract?.versions.length ?? 0) > 0,
+        // 취소 안내는 직원이 취소할 때 고른 경우에만 바로 보냅니다 (자동 발송 없음)
+        contract_cancelled: false,
         balance_paid: b.payments.some((p) => p.kind === 'balance'),
         photos_released: !!b.photosReleasedAt,
         revision_replied: (b.revisionRequests ?? []).some((r) => !!r.reply),
@@ -390,6 +417,7 @@ export function backfillEmails(b: Booking, baseUrl: string, now: Date = new Date
     transfer_notified: b.transferNotice?.at,
     deposit_paid: b.payments.find((p) => p.kind === 'deposit')?.paidAt,
     contract_issued: b.contract?.versions[0]?.issuedAt,
+    contract_cancelled: undefined,
     balance_paid: b.payments.find((p) => p.kind === 'balance')?.paidAt,
     photos_released: b.photosReleasedAt,
     revision_replied: (b.revisionRequests ?? []).find((r) => r.repliedAt)?.repliedAt,

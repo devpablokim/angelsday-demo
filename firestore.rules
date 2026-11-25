@@ -81,13 +81,14 @@ service cloud.firestore {
           && (!('prepStartedAt' in after) || before.payments.size() > 0);
       }
 
-      // ── 계약서 ── 발행된 판과 변경 기록은 뒤에 추가만 됩니다 (관리자도 지우거나 고칠 수 없음, 정정은 새 판·새 기록으로).
-      // 판 안에서 나중에 채울 수 있는 것은 고객 확인 시각(confirmedAt) 하나뿐입니다.
+      // ── 계약서 ── 발행된 판 · 변경 기록 · 취소/철회 기록은 뒤에 추가만 됩니다 (관리자도 지우거나 고칠 수 없음, 정정은 새 판·새 기록으로).
+      // 판 안에서 나중에 채울 수 있는 것은 고객 확인 시각(confirmedAt) 하나뿐입니다. 취소·철회는 관리자가 언제든 기록할 수 있습니다.
       function contractAppendOnly(before, after) {
         return !('contract' in before)
           || (('contract' in after)
             && contractVersionsKept(before.contract.versions, after.contract.versions)
-            && appendOnly(before.contract.changes, after.contract.changes, 1));
+            && appendOnly(before.contract.changes, after.contract.changes, 1)
+            && appendOnly(before.contract.get('cancellations', []), after.contract.get('cancellations', []), 1));
       }
       function contractVersionsKept(a, b) {
         return b is list && b.size() >= a.size() && b.size() <= a.size() + 1
@@ -100,6 +101,7 @@ service cloud.firestore {
         return !after.diff(before).affectedKeys().hasAny(['contract'])
           || (('contract' in before) && ('contract' in after)
             && after.contract.changes == before.contract.changes
+            && after.contract.get('cancellations', []) == before.contract.get('cancellations', [])
             && after.contract.versions.size() == before.contract.versions.size()
             && contractVersionsKept(before.contract.versions, after.contract.versions));
       }

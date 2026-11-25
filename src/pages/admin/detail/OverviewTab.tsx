@@ -1,3 +1,4 @@
+import { activeCancellation } from '@shared/contract';
 import { formatDateTime, won } from '@shared/dates';
 import { calendarName, eventConfig } from '@shared/eventTypes';
 import * as ops from '@shared/ops';
@@ -10,6 +11,7 @@ import { Icon } from '../../../components/Icon';
 import { Counter, Sheet } from '../../../components/ui';
 import { useCatalog, useToday } from '../../../data/hooks';
 import { useSaveBooking } from '../adminUtils';
+import { CancelContractSheet, RestoreContractSheet } from './ContractCancel';
 
 const SUB_LABEL: Record<SubState, string> = {
   req_draft: '필요사항 작성 중',
@@ -45,6 +47,10 @@ export function OverviewTab({ booking: b }: { booking: Booking }) {
   const [balanceMethod, setBalanceMethod] = useState<PaymentMethod>('onsite');
   const [cancelOpen, setCancelOpen] = useState(false);
   const [reason, setReason] = useState('');
+  // 계약서가 있는 예약은 계약 취소(위약금·환불 기록)와 함께 처리합니다
+  const hasContract = !!b.contract?.versions.length;
+  const contractCancelled = !!activeCancellation(b);
+  const [contractSheet, setContractSheet] = useState<'' | 'cancel' | 'restore'>('');
 
   async function saveInfo() {
     const changed: string[] = [];
@@ -144,7 +150,10 @@ export function OverviewTab({ booking: b }: { booking: Booking }) {
               </span>
             </button>
             {b.cancelledAt ? (
-              <button className="quick-action" onClick={() => void save(ops.log({ ...b, cancelledAt: undefined }, 'admin', 'cancel', '예약 취소를 철회했어요'), '예약을 복구했어요.')}>
+              <button
+                className="quick-action"
+                onClick={() => (contractCancelled ? setContractSheet('restore') : void save(ops.log({ ...b, cancelledAt: undefined }, 'admin', 'cancel', '예약 취소를 철회했어요'), '예약을 복구했어요.'))}
+              >
                 <Icon name="arrowLeft" />
                 <span className="stack">
                   <b>예약 복구</b>
@@ -152,11 +161,11 @@ export function OverviewTab({ booking: b }: { booking: Booking }) {
                 </span>
               </button>
             ) : (
-              <button className="quick-action quick-action--danger" onClick={() => setCancelOpen(true)}>
+              <button className="quick-action quick-action--danger" onClick={() => (hasContract && !contractCancelled ? setContractSheet('cancel') : setCancelOpen(true))}>
                 <Icon name="close" />
                 <span className="stack">
                   <b>예약 취소</b>
-                  <span className="caption">사유를 기록합니다</span>
+                  <span className="caption">{hasContract && !contractCancelled ? '계약 취소 · 위약금 · 환불 기록' : '사유를 기록합니다'}</span>
                 </span>
               </button>
             )}
@@ -285,6 +294,8 @@ export function OverviewTab({ booking: b }: { booking: Booking }) {
           <input className="input" value={reason} onChange={(e) => setReason(e.target.value)} placeholder="예) 고객 요청 — 일정 변경" />
         </label>
       </Sheet>
+      <CancelContractSheet open={contractSheet === 'cancel'} onClose={() => setContractSheet('')} booking={b} />
+      <RestoreContractSheet open={contractSheet === 'restore'} onClose={() => setContractSheet('')} booking={b} />
     </div>
   );
 }

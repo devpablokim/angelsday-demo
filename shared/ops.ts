@@ -1,15 +1,16 @@
 // 예약(Booking)을 바꾸는 순수 함수 모음. 모든 변경은 타임라인에 기록됩니다.
-import { formatDate, todayKST } from './dates';
+import { formatDate, todayKST, won } from './dates';
 import { defaultRequirements, eventConfig, honoreesFromForm } from './eventTypes';
 import { accessCode, bookingToken, receiptNo, uid } from './ids';
 import { generatePrep } from './prepTemplates';
-import { contractDiff, contractTemplate } from './contract';
+import { activeCancellation, contractDiff, contractTemplate } from './contract';
 import { calcQuote } from './quote';
 import type {
   Actor,
   AdjustRequest,
   Booking,
   ChecklistItem,
+  ContractCancellation,
   ContractChange,
   ContractTemplateId,
   ContractVersion,
@@ -243,6 +244,7 @@ export interface ContractChangeInput {
  * 바뀐 칸(변경 전 → 변경 후)은 이전 판과 비교해 자동으로 남깁니다. 발행된 판과 변경 기록은 고치지 않습니다.
  */
 export function issueContract(b: Booking, templateId: ContractTemplateId, values: Record<string, string>, staff: string, change?: ContractChangeInput): Booking {
+  if (activeCancellation(b)) throw new Error('취소된 계약이에요. 취소를 철회한 뒤 다시 발행해 주세요.');
   const prev = b.contract?.versions ?? [];
   const last = prev[prev.length - 1];
   const version = prev.length + 1;
@@ -256,7 +258,7 @@ export function issueContract(b: Booking, templateId: ContractTemplateId, values
     if (!items.length) throw new Error('이전 계약서와 달라진 내용이 없어요.');
     record = { id: uid('chg'), at: nowIso(), version, items, ...change };
   }
-  const next: Booking = { ...b, contract: { versions: [...prev, issued], changes: record ? [...changes, record] : changes } };
+  const next: Booking = { ...b, contract: { ...b.contract, versions: [...prev, issued], changes: record ? [...changes, record] : changes } };
   const label = contractTemplate(templateId).label;
   return log(next, 'admin', 'contract', record ? `계약서 v${version} 발행 (변경 ${record.items.length}건: ${record.items.slice(0, 3).map((i) => i.label).join(', ')}${record.items.length > 3 ? ' 외' : ''})` : `${label} v1 발행`);
 }
@@ -268,4 +270,45 @@ export function confirmContract(b: Booking, version: number): Booking {
   if (!last || last.version !== version || last.confirmedAt) return b;
   const next: Booking = { ...b, contract: { ...b.contract!, versions: [...versions.slice(0, -1), { ...last, confirmedAt: nowIso() }] } };
   return log(next, 'customer', 'contract', `계약서 v${version} 내용 확인`);
+}
+
+export interface ContractCancelInput {
+  requester: string;
+  channel: ContractCancellation['channel'];
+  staff: string;
+  reason: string;
+  penalty: number;
+  refund: number;
+  rule?: string;
+  /** 예약도 함께 취소 (캘린더·자동 메일에서 빠짐) */
+  withBooking: boolean;
+}
+
+/**
+ * 계약을 취소합니다 — 언제든(확인 전·후, 결제 전·후) 가능하고, 위약금·환불 금액은 직원이 정한 대로 남깁니다.
+ * 취소 기록은 지우지 않고 쌓이며, 철회(restoreContract)도 새 기록으로 남습니다.
+ */
+export function cancelContract(b: Booking, input: ContractCancelInput): Booking {
+  if (!b.contract?.versions.length) throw new Error('발행된 계약서가 없어요.');
+  if (activeCancellation(b)) throw new Error('이미 취소된 계약이에요.');
+  const record: ContractCancellation = { id: uid('ccl'), at: nowIso(), kind: 'cancel', ...input, rule: input.rule ?? '' };
+  const next: Booking = {
+    ...b,
+    ...(input.withBooking ? { cancelledAt: record.at } : {}),
+    contract: { ...b.contract, cancellations: [...(b.contract.cancellations ?? []), record] },
+  };
+  const money = `위약금 ${won(input.penalty)} · 환불 ${won(input.refund)}`;
+  return log(next, 'admin', 'cancel', `계약 취소${input.withBooking ? ' (예약 함께 취소)' : ''} — ${input.reason} · ${money}`);
+}
+
+/** 계약 취소를 철회합니다 (예약 취소도 함께 되돌릴 수 있음) */
+export function restoreContract(b: Booking, input: { requester: string; channel: ContractCancellation['channel']; staff: string; reason: string; withBooking: boolean }): Booking {
+  if (!activeCancellation(b)) throw new Error('취소된 계약이 아니에요.');
+  const record: ContractCancellation = { id: uid('ccl'), at: nowIso(), kind: 'restore', ...input, penalty: 0, refund: 0, rule: '' };
+  const next: Booking = {
+    ...b,
+    cancelledAt: input.withBooking ? undefined : b.cancelledAt,
+    contract: { ...b.contract!, cancellations: [...(b.contract!.cancellations ?? []), record] },
+  };
+  return log(next, 'admin', 'cancel', `계약 취소 철회${input.withBooking && b.cancelledAt ? ' · 예약 복구' : ''} — ${input.reason}`);
 }

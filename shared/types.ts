@@ -180,9 +180,32 @@ export interface ContractChange {
   memo: string;
 }
 
+/** 계약 취소 · 취소 철회 기록 — 뒤에 추가만 합니다. 마지막 기록이 'cancel' 이면 취소된 계약입니다. */
+export interface ContractCancellation {
+  id: string;
+  at: ISODateTime;
+  kind: 'cancel' | 'restore';
+  /** 요청자 (고객측 이름·연락처) */
+  requester: string;
+  channel: ChangeChannel;
+  /** 처리한 직원 */
+  staff: string;
+  /** 취소 · 철회 사유 */
+  reason: string;
+  /** 위약금 (원) — 취소일 때 */
+  penalty: number;
+  /** 고객에게 돌려줄 금액 (원) — 취소일 때 */
+  refund: number;
+  /** 위약금 계산에 적용한 규정 */
+  rule?: string;
+  /** 예약도 함께 취소 · 복구했는지 */
+  withBooking: boolean;
+}
+
 export interface BookingContract {
   versions: ContractVersion[];
   changes: ContractChange[];
+  cancellations?: ContractCancellation[];
 }
 
 export interface ScheduleItem {

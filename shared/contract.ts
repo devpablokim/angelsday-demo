@@ -1,9 +1,10 @@
 // 계약서 자동 작성 — 엔젤스데이 엑셀 계약서 4종의 '어느 칸에 무엇을 넣는지'와 예약에서 채울 값.
 // 엑셀 파일(public/contracts/*.xlsx)은 scripts/contracts/make_templates.py 로 원본에서 개인정보를 지워 만든 빈 양식입니다.
 // 칸 주소는 그 양식 기준이며, 앞면(0)은 계약서, 뒷면(1)은 '연회계약규정' 시트입니다.
+import { diffDays, todayKST } from './dates';
 import { calendarName } from './eventTypes';
 import { calcQuote } from './quote';
-import type { Booking, ContractChange, ContractTemplateId, ContractVersion, EventType } from './types';
+import type { Booking, ContractCancellation, ContractChange, ContractTemplateId, ContractVersion, EventType } from './types';
 import { hallById } from './venue';
 
 export type ContractGroup = '행사' | '주최자' | '계약금' | '품목' | '뷔페' | '준비사항' | '계약' | '규정면';
@@ -148,20 +149,20 @@ export const CONTRACT_TEMPLATES: ContractTemplate[] = [
       f('depositMemo', '입금 메모', '계약금', 'H10', {
         hint: '예) 10/17 박미영님',
       }),
-      f('itemPackage', '웨딩패키지 PRICE', '품목', 'D14', {
+      f('itemPackage', '웨딩패키지 (공급가)', '품목', 'D14', {
         kind: 'number',
         vatCell: 'G14',
         totalCell: 'I14',
       }),
       f('itemFlower', '생화장식', '품목', 'D15'),
-      f('itemMc', '웨딩전문사회자 PRICE', '품목', 'D16', {
+      f('itemMc', '웨딩전문사회자 (공급가)', '품목', 'D16', {
         kind: 'number',
         vatCell: 'G16',
         totalCell: 'I16',
       }),
-      f('itemBouquet', '생화부케 PRICE', '품목', 'D17', { kind: 'number' }),
-      f('itemBanner', '포토배너 PRICE', '품목', 'D18', { kind: 'number' }),
-      f('itemCake', '케잌 & 와인 PRICE', '품목', 'D19', { kind: 'number' }),
+      f('itemBouquet', '생화부케 (공급가)', '품목', 'D17', { kind: 'number' }),
+      f('itemBanner', '포토배너 (공급가)', '품목', 'D18', { kind: 'number' }),
+      f('itemCake', '케이크 & 와인 (공급가)', '품목', 'D19', { kind: 'number' }),
       f('buffetAdult', '뷔페 대인', '뷔페', 'C27', { kind: 'multiline' }),
       f('buffetChild', '뷔페 소인', '뷔페', 'E27', { kind: 'multiline' }),
       f('notes', '준비사항', '준비사항', 'C32', { kind: 'multiline' }),
@@ -227,6 +228,67 @@ export const CONTRACT_TEMPLATES: ContractTemplate[] = [
   },
 ];
 
+/** 양식에 원래 적혀 있는 표준 단가·문구 (엑셀 양식의 값과 같습니다) — 자동으로 채우지 않는 칸의 기본값 */
+const DEFAULTS: Record<ContractTemplateId, Record<string, string>> = {
+  dol: {
+    packagePrice: '800,000원',
+    buffetAdult: '대인\n53,000\n(미션고객가)',
+    buffetChild: '소인\n27,000',
+    rulesDeposit: '500,000',
+  },
+  birthday: {
+    itemRental: '300000',
+    itemRentalNote: '상차림 이용 시 서비스',
+    itemTable: '450000',
+    itemTableNote: '신청',
+    itemBanner: '100000',
+    itemBannerNote: '서비스',
+    itemInvite: '30000',
+    itemInviteNote: '서비스',
+    itemBand1: '400000',
+    itemBand2: '600000',
+    itemKaraoke: '200000',
+    buffetAdult: '대인\n55,000',
+    buffetChild: '소인\n27,000',
+    rulesDeposit: '500,000',
+  },
+  wedding: {
+    itemPackage: '2000000',
+    itemFlower: '별도문의',
+    itemMc: '250000',
+    itemBouquet: '250000',
+    itemBanner: '300000',
+    itemCake: '200000',
+    buffetAdult: '대인\n57,000',
+    buffetChild: '소인\n27,000',
+    rulesDeposit: '1,000,000',
+  },
+  banquet: {
+    itemRental: '800000',
+    itemRentalActual: '400000',
+    itemRecreation: '350,000~',
+    itemBand1: '400000',
+    itemBand2: '650000',
+    itemBandRec: '700000',
+    itemKaraoke: '220000',
+    itemChampagne: '200000',
+    itemBanner: '100000',
+    itemBannerNote: '서비스',
+    buffetAdult: '대인\n51,000',
+    buffetChild: '소인\n27,000',
+    rulesDeposit: '1,000,000',
+  },
+};
+
+export function contractDefaults(id: ContractTemplateId): Record<string, string> {
+  return { ...DEFAULTS[id] };
+}
+
+/** 계약서에 보이는 값 = 양식 기본값 + 채운 값 */
+export function contractValues(id: ContractTemplateId, values: Record<string, string>): Record<string, string> {
+  return { ...DEFAULTS[id], ...values };
+}
+
 export const CONTRACT_GROUPS: ContractGroup[] = ['행사', '주최자', '계약금', '품목', '뷔페', '준비사항', '계약', '규정면'];
 
 export function contractTemplate(id: ContractTemplateId): ContractTemplate {
@@ -263,14 +325,83 @@ function money(n: number) {
   return n.toLocaleString('ko-KR');
 }
 
+// ───────── 행사 일시 · 계약일 ─────────
+// 엑셀 칸에는 양식 모양대로 '26 년  12 월  13 일  토요일  12 시 00 분  ~  15 시 00 분' 처럼 적고,
+// 화면·PDF 계약서와 입력칸은 날짜·시작·종료 시각으로 나눠 다룹니다.
+
+export interface EventWhen {
+  date: string; // 2026-12-13
+  start: string; // 12:00
+  end: string; // 15:00
+}
+
+const WHEN_RE = /(\d{2,4})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일\s*(?:\S요일)?\s*(\d{1,2})\s*시\s*(\d{1,2})\s*분\s*~\s*(\d{1,2})\s*시\s*(\d{1,2})\s*분/;
+
+export function parseEventWhen(text: string | undefined): EventWhen | null {
+  const m = WHEN_RE.exec(text ?? '');
+  if (!m) return null;
+  const y = m[1].length === 2 ? 2000 + Number(m[1]) : Number(m[1]);
+  return { date: `${y}-${pad(Number(m[2]))}-${pad(Number(m[3]))}`, start: `${pad(Number(m[4]))}:${pad(Number(m[5]))}`, end: `${pad(Number(m[6]))}:${pad(Number(m[7]))}` };
+}
+
+export function eventWhenText(w: EventWhen): string {
+  const [y, m, d] = w.date.split('-').map(Number);
+  const [sh, sm] = w.start.split(':').map(Number);
+  const [eh, em] = w.end.split(':').map(Number);
+  const wd = WD[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
+  return `${String(y).slice(2)} 년  ${m} 월  ${d} 일  ${wd}요일  ${sh} 시 ${pad(sm)} 분  ~  ${eh} 시 ${pad(em)} 분`;
+}
+
+/** 2026. 12. 13 (토) 12:00 – 15:00 */
+export function eventWhenDisplay(text: string | undefined): string {
+  const w = parseEventWhen(text);
+  if (!w) return (text ?? '').replace(/\s+/g, ' ').trim();
+  return `${dateDisplay(w.date)} ${w.start} – ${w.end}`;
+}
+
+export function dateDisplay(iso: string): string {
+  const [y, m, d] = iso.split('-').map(Number);
+  return `${y}. ${m}. ${d} (${WD[new Date(Date.UTC(y, m - 1, d)).getUTCDay()]})`;
+}
+
+/** 계약일 칸 (양식에 따라 년·월·일·요일이 나뉘거나 한 칸) */
+export function contractDateFields(id: ContractTemplateId, iso: string): Record<string, string> {
+  const [y, m, d] = iso.split('-').map(Number);
+  const v: Record<string, string> = {
+    contractYear: String(y).slice(2),
+    contractMonth: String(m),
+    contractDay: String(d),
+    contractWeekday: WD[new Date(Date.UTC(y, m - 1, d)).getUTCDay()],
+    contractDate: `${y}년      ${m}월      ${d}일`,
+  };
+  const keys = new Set(contractTemplate(id).fields.map((x) => x.key));
+  return Object.fromEntries(Object.entries(v).filter(([k]) => keys.has(k)));
+}
+
+export function contractDateOf(values: Record<string, string>): string | null {
+  const one = /(\d{4})\s*년\s*(\d{1,2})\s*월\s*(\d{1,2})\s*일/.exec(values.contractDate ?? '');
+  if (one) return `${one[1]}-${pad(Number(one[2]))}-${pad(Number(one[3]))}`;
+  const y = Number(values.contractYear);
+  const m = Number(values.contractMonth);
+  const d = Number(values.contractDay);
+  if (!y || !m || !d) return null;
+  return `${y < 100 ? 2000 + y : y}-${pad(m)}-${pad(d)}`;
+}
+
+/** 규정면(뒷면)의 계약금·담당자 칸은 앞면 값을 따라갑니다 */
+export function syncRuleFields(values: Record<string, string>): Record<string, string> {
+  const n = Number((values.deposit ?? '').replace(/[^\d]/g, ''));
+  return {
+    ...values,
+    ...(n ? { rulesDeposit: money(n) } : {}),
+    ...(values.manager !== undefined ? { rulesManager: values.manager } : {}),
+  };
+}
+
 /** 예약에서 바로 채울 수 있는 칸. 담당자 이름과 계약일은 발행하는 사람·날짜로 */
 export function contractAutoValues(id: ContractTemplateId, b: Booking, opts: { manager?: string; today: string }): Record<string, string> {
-  const [y, m, d] = b.date.split('-').map(Number);
   const [hh, mm] = b.time.split(':').map(Number);
-  const end = hh + 3; // 홀 이용 3시간 (1부 12:00~15:00 · 2부 17:00~20:00)
-  const wd = WD[new Date(Date.UTC(y, m - 1, d)).getUTCDay()];
-  const [ty, tm, td] = opts.today.split('-').map(Number);
-  const twd = WD[new Date(Date.UTC(ty, tm - 1, td)).getUTCDay()];
+  const end = `${pad(Math.min(23, hh + 3))}:${pad(mm)}`; // 홀 이용 3시간 (1부 12:00~15:00 · 2부 17:00~20:00)
   const totals = b.quote ? calcQuote(b.quote) : null;
   const depositPay = b.payments.find((p) => p.kind === 'deposit');
   const deposit = depositPay?.amount ?? totals?.deposit ?? 0;
@@ -279,17 +410,13 @@ export function contractAutoValues(id: ContractTemplateId, b: Booking, opts: { m
   const food = b.quote?.lines.find((l) => /식대|뷔페|buffet/i.test(`${l.category} ${l.label}`) && l.unitPrice > 10000);
   const manager = opts.manager || b.manager?.name || '';
   const v: Record<string, string> = {
-    eventDate: `${String(y).slice(2)} 년  ${m} 월  ${d} 일  ${wd}요일  ${hh} 시 ${pad(mm)} 분  ~  ${end} 시 ${pad(mm)} 분`,
+    eventDate: eventWhenText({ date: b.date, start: b.time, end }),
     hall: hallLabel(b),
     eventName: eventName(b),
     guests: `${b.guests}명`,
     deposit: !deposit ? '' : contractTemplate(id).fields.find((x) => x.key === 'deposit')?.kind === 'number' ? String(deposit) : `${money(deposit)}원`,
     depositMemo: depositPay && depositDate ? `${Number(depositDate.slice(0, 2))}/${Number(depositDate.slice(3, 5))} ${depositor}` : '',
-    contractYear: String(ty).slice(2),
-    contractMonth: String(tm),
-    contractDay: String(td),
-    contractWeekday: twd,
-    contractDate: `${ty}년      ${tm}월      ${td}일`,
+    ...contractDateFields(id, opts.today),
     manager,
     rulesDeposit: deposit ? money(deposit) : '',
     rulesCustomer: b.customer.name,
@@ -318,12 +445,10 @@ export function contractAutoValues(id: ContractTemplateId, b: Booking, opts: { m
 export function contractDiff(id: ContractTemplateId, before: Record<string, string>, after: Record<string, string>): ContractChange['items'] {
   return contractTemplate(id)
     .fields.filter((x) => (before[x.key] ?? '').trim() !== (after[x.key] ?? '').trim())
-    .map((x) => ({
-      key: x.key,
-      label: x.label,
-      before: before[x.key] ?? '',
-      after: after[x.key] ?? '',
-    }));
+    .map((x) => {
+      const show = (s: string | undefined) => (x.key === 'eventDate' ? eventWhenDisplay(s) : (s ?? ''));
+      return { key: x.key, label: x.label, before: show(before[x.key]), after: show(after[x.key]) };
+    });
 }
 
 export function latestContract(b: Booking): ContractVersion | undefined {
@@ -338,3 +463,103 @@ export const CHANNEL_LABEL: Record<ContractChange['channel'], string> = {
   email: '메일',
   visit: '방문',
 };
+
+// ───────── 계약 취소 ─────────
+
+export function contractCancellations(b: Booking): ContractCancellation[] {
+  return b.contract?.cancellations ?? [];
+}
+
+/** 지금 취소 상태인 계약이면 그 취소 기록 */
+export function activeCancellation(b: Booking): ContractCancellation | undefined {
+  const list = contractCancellations(b);
+  const last = list[list.length - 1];
+  return last?.kind === 'cancel' ? last : undefined;
+}
+
+/** 양식 앞면의 '행사규정' — 위약금 제안 계산에 씁니다 (직원이 금액을 자유롭게 고칠 수 있음) */
+const CANCEL_POLICY: Record<ContractTemplateId, { graceDays: number; tiers: { days: number; rate: number }[] }> = {
+  dol: {
+    graceDays: 1,
+    tiers: [
+      { days: 10, rate: 50 },
+      { days: 30, rate: 30 },
+      { days: 90, rate: 10 },
+    ],
+  },
+  birthday: {
+    graceDays: 1,
+    tiers: [
+      { days: 1, rate: 100 },
+      { days: 10, rate: 50 },
+      { days: 30, rate: 30 },
+      { days: 90, rate: 10 },
+    ],
+  },
+  wedding: {
+    graceDays: 1,
+    tiers: [
+      { days: 10, rate: 50 },
+      { days: 30, rate: 30 },
+      { days: 90, rate: 10 },
+    ],
+  },
+  banquet: {
+    graceDays: 0,
+    tiers: [
+      { days: 10, rate: 50 },
+      { days: 30, rate: 30 },
+      { days: 90, rate: 10 },
+    ],
+  },
+};
+
+export interface CancelEstimate {
+  /** 행사까지 남은 날 (지난 행사면 음수) */
+  daysBefore: number;
+  /** 첫 계약서 발행 후 지난 날 */
+  daysSinceContract: number;
+  /** 정상가 총액 (할인 전 견적 소계) */
+  base: number;
+  rate: number;
+  /** 받은 돈 (예약금 + 잔금) */
+  paid: number;
+  depositPaid: number;
+  penalty: number;
+  refund: number;
+  /** 받은 돈보다 위약금이 크면 더 받을 금액 */
+  extra: number;
+  rule: string;
+}
+
+/** 규정대로 계산한 위약금 · 환불 제안 */
+export function cancelEstimate(b: Booking, today: string = todayKST()): CancelEstimate {
+  const first = b.contract?.versions[0];
+  const tid = latestContract(b)?.templateId ?? templateForEvent(b.eventType);
+  const policy = CANCEL_POLICY[tid];
+  const daysBefore = diffDays(today, b.date);
+  const since = first ? diffDays(first.issuedAt.slice(0, 10), today) : 0;
+  const base = b.quote ? calcQuote(b.quote).subtotal : 0;
+  const paid = b.payments.reduce((s, p) => s + p.amount, 0);
+  const depositPaid = b.payments.filter((p) => p.kind === 'deposit').reduce((s, p) => s + p.amount, 0);
+  let rate = 0;
+  let penalty = 0;
+  let rule: string;
+  if (policy.graceDays && since <= policy.graceDays) {
+    rule = `계약 ${policy.graceDays}일 이내 해지 — 계약금 전액 반환`;
+  } else {
+    const tier = policy.tiers.find((t) => daysBefore <= t.days);
+    rate = tier?.rate ?? 0;
+    const byRate = Math.round((base * rate) / 100);
+    penalty = Math.max(depositPaid, byRate);
+    const when = daysBefore < 0 ? '행사일 이후' : daysBefore === 0 ? '행사 당일' : `행사 ${daysBefore}일 전`;
+    rule = tier
+      ? depositPaid > byRate
+        ? `${when} 취소 — 계약금 반환 불가 (정상가 ${rate}% ${money(byRate)}원보다 큼)`
+        : `${when} 취소 — 정상가의 ${rate}% 위약금`
+      : depositPaid
+        ? `행사 ${daysBefore}일 전 취소 — 계약금 반환 불가`
+        : `행사 ${daysBefore}일 전 취소 — 위약금 없음`;
+  }
+  return { daysBefore, daysSinceContract: since, base, rate, paid, depositPaid, penalty, refund: Math.max(0, paid - penalty), extra: Math.max(0, penalty - paid), rule };
+}

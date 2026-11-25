@@ -9,7 +9,7 @@ import { Icon } from '../../../components/Icon';
 import { QuoteDocument } from '../../../components/QuoteDocument';
 import { Empty, Sheet, useToast } from '../../../components/ui';
 import { useAdminCalendar, useCatalog } from '../../../data/hooks';
-import { elementToPdf } from '../../../lib/pdf';
+import { pagesToPdf } from '../../../lib/pdf';
 import { digitsOnly, errorMessage, useSaveBooking } from '../adminUtils';
 
 function nextVersion(b: Booking): number {
@@ -92,7 +92,7 @@ export function QuoteTab({ booking: b }: { booking: Booking }) {
     if (!pdfRef.current || !draft) return;
     setPdfBusy(true);
     try {
-      await elementToPdf(pdfRef.current, `엔젤스데이_견적서_${b.customer.name}_v${draft.version}.pdf`);
+      await pagesToPdf([pdfRef.current], `엔젤스데이_견적서_${b.customer.name}_v${draft.version}.pdf`);
     } catch (e) {
       toast(errorMessage(e), 'error');
     } finally {
