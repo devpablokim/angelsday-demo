@@ -31,6 +31,11 @@ svg {
   display: block;
   max-width: 100%;
 }
+/* html2canvas(PDF)가 글자 기준선을 재려고 넣는 1×1 이미지는 인라인이어야 합니다.
+   위 규칙(block)이 걸리면 기준선을 줄 아래로 잘못 재서 PDF 글자가 몇 px 아래로 밀립니다. */
+img[width='1'][height='1'] {
+  display: inline;
+}
 
 a {
   color: inherit;

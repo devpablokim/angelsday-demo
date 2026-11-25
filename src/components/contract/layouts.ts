@@ -56,6 +56,8 @@ export interface DocLayout {
   notesKey?: string;
   /** 앞면 '행사규정' (시기 → 내용) */
   rules: [string, string][];
+  /** 위약금 기준 금액 (양식 문구: 정상가 총 · 정상금액) */
+  rulesBase: string;
   rulesNote?: string;
   /** 뒷면 1항의 예약금 반환 문구 */
   clause1Refund: string;
@@ -66,10 +68,11 @@ export interface DocLayout {
 const PARKING = ['본 건물 이용 시 2시간 30분 무료', '행사 차량 3대 무료 주차 (본 건물 이용 시)', '제1·2 공영주차장 이용 시 2시간 무료'];
 const VENDOR_NOTE = '외부 업체는 조기 마감될 수 있습니다. 직접 업체 문의 후 진행하시기 바랍니다. (본인 준비)';
 const REFUND_7 = '예약금은 계약 후 7일 이후 반환되지 않습니다.';
-const tiers = (word: string): [string, string][] => [
-  ['행사일로부터 90일 전 취소 시', `${word} 10% 위약금 배상`],
-  ['행사일로부터 30일 전 취소 시', `${word} 30% 위약금 배상`],
-  ['행사일로부터 10일 전 취소 시', `${word} 50% 위약금 배상`],
+/** 앞면 행사규정의 위약금 단계 — 기준 금액(정상가 총액 · 정상 금액)은 rulesBase 로 표 아래에 적습니다 */
+const tiers: [string, string][] = [
+  ['행사일로부터 90일 전 취소 시', '10% 위약금 배상'],
+  ['행사일로부터 30일 전 취소 시', '30% 위약금 배상'],
+  ['행사일로부터 10일 전 취소 시', '50% 위약금 배상'],
 ];
 
 export const DOC_LAYOUTS: Record<ContractTemplateId, DocLayout> = {
@@ -122,7 +125,8 @@ export const DOC_LAYOUTS: Record<ContractTemplateId, DocLayout> = {
       { title: '이벤트 할인 내역', lines: ['당일 계약 식대 2,000원 할인', '계약 후기 & 댓글 이벤트 작성 시 5,000원 할인 (2주일 이내)'] },
       { title: '안내', lines: ['포토테이블 사진 5×7 사이즈 6장 인화해 오세요!', '주차는 본 건물 이용 시 주인공 차량 무료 가능합니다.'] },
     ],
-    rules: [['계약 후 1일 이내', '계약금 반환 (이후 반환 불가)'], ...tiers('정상가 총')],
+    rules: [['계약 후 1일 이내', '계약금 반환 (이후 반환 불가)'], ...tiers],
+    rulesBase: '정상가 총액',
     clause1Refund: REFUND_7,
     clause12: true,
   },
@@ -162,7 +166,7 @@ export const DOC_LAYOUTS: Record<ContractTemplateId, DocLayout> = {
           { label: '밴드 1인', desc: '진행 + 노래방 기계', amount: 'itemBand1' },
           { label: '밴드 2인', desc: '진행 + 노래방 기계 + 국악인', amount: 'itemBand2' },
           { label: '노래방', amount: 'itemKaraoke' },
-          { label: '사진 · 의상 · 메이크업', amountText: '엔젤 협력 이용 가능' },
+          { label: '사진 · 의상 · 메이크업', amountText: '', noteText: '엔젤 협력 이용 가능' },
           { label: '답례품', amountText: '' },
           { label: '외부 밴드 반입비', amountText: '100,000원' },
         ],
@@ -177,7 +181,8 @@ export const DOC_LAYOUTS: Record<ContractTemplateId, DocLayout> = {
     drinksNote: '이용 시 별도 추후 계산합니다.',
     buffet: { childAge: '5세 ~ 초등 3학년', notes: ['보증 인원에 소인은 별도입니다.', '계절에 따라 메뉴는 변경될 수 있습니다.', '미달 시 (성인 기준) 100% 계산', '부가세 10% 포함, 봉사료 5% 별도'] },
     side: [{ title: '주차 안내', lines: ['본 건물 이용 시 2시간 30분 무료', '행사 차량 3대 무료 주차 (본 건물 이용 시)', '장기1 · 장기2 공영주차장 이용 시 2시간 무료'] }],
-    rules: [['계약일로부터 1일 이내 해지 시', '계약금 반환 (이후 반환 불가)'], ...tiers('정상가 총'), ['행사 전날 · 당일 취소 시', '100% 위약금 배상']],
+    rules: [['계약일로부터 1일 이내 해지 시', '계약금 반환 (이후 반환 불가)'], ...tiers, ['행사 전날 · 당일 취소 시', '100% 위약금 배상']],
+    rulesBase: '정상가 총액',
     clause1Refund: REFUND_7,
     clause12: false,
   },
@@ -234,7 +239,8 @@ export const DOC_LAYOUTS: Record<ContractTemplateId, DocLayout> = {
     },
     side: [{ title: '주차 안내', lines: PARKING }],
     notesKey: 'notes',
-    rules: [['예약일로부터 1일 이내 해지 시', '예약금 반환 (이후 반환 불가)'], ...tiers('정상 금액의')],
+    rules: [['예약일로부터 1일 이내 해지 시', '예약금 반환 (이후 반환 불가)'], ...tiers],
+    rulesBase: '정상 금액',
     rulesNote: '행사장은 10분 전 입장 가능합니다. 마감 시간은 계약 시간과 동일합니다.',
     clause1Refund: '예약금은 계약일로부터 7일 이내 취소 시 100% 환불, 7일 이후 취소 시 환불 불가합니다.',
     clause12: true,
@@ -254,6 +260,7 @@ export const DOC_LAYOUTS: Record<ContractTemplateId, DocLayout> = {
       { label: '담당자 2', name: 'host2Name', phone: 'host2Phone' },
     ],
     address: ['address'],
+    tablesSideBySide: true,
     tables: [
       {
         title: '품목',
@@ -264,10 +271,15 @@ export const DOC_LAYOUTS: Record<ContractTemplateId, DocLayout> = {
           { label: '밴드 2인조', amount: 'itemBand2' },
           { label: '밴드 + 레크리에이션', amount: 'itemBandRec' },
           { label: '노래방 기기 대여', amount: 'itemKaraoke' },
+        ],
+        foot: ['레크리에이션 · 밴드는 이용 시 최소 3주 전 선택하셔야 원활한 진행이 가능합니다.', '당일 현금 결제 시 / 이체·카드 결제 시 부가세 별도'],
+      },
+      {
+        title: '품목',
+        rows: [
           { label: '샴페인 타워', amount: 'itemChampagne' },
           { label: '현수막', amount: 'itemBanner', note: 'itemBannerNote' },
         ],
-        foot: ['레크리에이션 · 밴드는 이용 시 최소 3주 전 선택하셔야 원활한 진행이 가능합니다.', '당일 현금 결제 시 / 이체·카드 결제 시 부가세 별도'],
       },
     ],
     drinks: [
@@ -282,7 +294,8 @@ export const DOC_LAYOUTS: Record<ContractTemplateId, DocLayout> = {
       notes: ['식대 부가세 포함', '식·주류·음료 봉사료 5% 별도', '계절에 따라 메뉴는 변경될 수 있습니다.', '미달 시 (성인 기준) 100% 계산'],
     },
     side: [{ title: '주차 안내', lines: PARKING }],
-    rules: [['다음 달 행사', '계약금 환불 불가'], ...tiers('정상 금액의')],
+    rules: [['다음 달 행사', '계약금 환불 불가'], ...tiers],
+    rulesBase: '정상 금액',
     clause1Refund: REFUND_7,
     clause12: true,
   },
